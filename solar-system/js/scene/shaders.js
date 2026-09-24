@@ -135,6 +135,7 @@ export function makeShadowUniforms() {
  * opts.night: uniform { value: texture } of night-side lights (added where the Sun is below the horizon)
  * opts.blur: enable rotation blur of the colour map (used when the body spins faster than the frame rate can show)
  * opts.lunar: airless regolith photometry (see below) instead of Lambert's law
+ * opts.extinction: [τR, τG, τB] zenith optical depth of an atmosphere that the sunlight crosses
  */
 export function patchBodyMaterial(mat, u, opts = {}) {
   mat.onBeforeCompile = sh => {
@@ -179,8 +180,19 @@ export function patchBodyMaterial(mat, u, opts = {}) {
     reflectedLight.directDiffuse *= 2.0 * L / max(mu0 + mu, 1e-3) + (1.0 - L);
     reflectedLight.directSpecular *= 0.0;   // regolith has no glossy reflection
   }`;
+    // Atmospheric extinction of the direct sunlight: at a low Sun the light crosses up to 38 air
+    // masses (Kasten & Young 1989), so the terminator dims and reddens instead of staying at full
+    // strength to a hard edge. Relative to an overhead Sun, because the maps already show the
+    // ground as seen through one air mass.
+    const ext = !opts.extinction ? '' : /* glsl */`
+  {
+    float cz = dot(normalize(vOmRel), normalize(uSunRel - vOmRel));
+    float z = degrees(acos(clamp(cz, 0.0, 1.0)));
+    float X = 1.0 / (max(cz, 0.0) + 0.50572 * pow(96.07995 - z, -1.6364));
+    omLight *= exp(-vec3(${opts.extinction.map(x => x.toFixed(3)).join(', ')}) * (X - 1.0));
+  }`;
     body = body.replace('#include <lights_fragment_end>', /* glsl */`#include <lights_fragment_end>
-  vec3 omLight = omSunlight(vOmRel);
+  vec3 omLight = omSunlight(vOmRel);${ext}
   reflectedLight.directDiffuse *= omLight;
   reflectedLight.directSpecular *= omLight;${lunar}`);
     if (opts.night) {
@@ -202,7 +214,7 @@ export function patchBodyMaterial(mat, u, opts = {}) {
     }
     sh.fragmentShader = body.replace('#include <common>', '#include <common>\n' + frag);
   };
-  mat.customProgramCacheKey = () => 'om' + (opts.night ? 'N' : '') + (opts.blur ? 'B' : '') + (opts.lunar ? 'L' : '');
+  mat.customProgramCacheKey = () => 'om' + (opts.night ? 'N' : '') + (opts.blur ? 'B' : '') + (opts.lunar ? 'L' : '') + (opts.extinction ? 'X' + opts.extinction.join() : '');
 }
 
 // ---- Sun: the white-light photosphere ----------------------------------------------------------

@@ -42,7 +42,10 @@ export const BODIES = [
     periodD: 365.256, rotationH: 23.9345, solarDayH: 24.0, obliquity: 23.44,
     tex: { map: 'earth.jpg', hires: 'earth_4k.jpg', night: 'earth_night.jpg', clouds: 'earth_clouds.jpg', rough: 'earth_rough.jpg' },
     representative: 'the clouds are a snapshot, not the weather on this date',
-    atmosphere: { color: [0.32, 0.55, 1.0], heightKm: 80, refractsUmbra: true },
+    // tauZenith: vertical optical depth for the sRGB channels (610, 550, 465 nm): Rayleigh scattering
+    // (Hansen & Travis 1974) plus a typical clear-sky aerosol load, τ(550 nm) = 0.1 with Ångström
+    // exponent 1.3. It dims and reddens sunlight near the terminator.
+    atmosphere: { color: [0.32, 0.55, 1.0], heightKm: 80, refractsUmbra: true, tauZenith: [0.151, 0.197, 0.318] },
     desc: 'The only world known to host life. Its seasons come from its 23.4° tilt, not from its distance to the Sun: the northern summer falls near aphelion, when Earth is farthest from the Sun.',
   },
   {

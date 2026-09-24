@@ -109,17 +109,21 @@ export class BodyViews {
     v.u = u;
     const t = def.tex || {};
     // maps load once the body is a few pixels across (loadVisible); until then its catalogue colour
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, color: t.map ? def.color : (t.tint || def.color) });
+    const matOpts = { roughness: 1, metalness: 0, color: t.map ? def.color : (t.tint || def.color) };
+    // a body with a roughness map has oceans: water reflects 2% at normal incidence (n = 1.333),
+    // not the 4% a standard material assumes
+    const mat = t.rough ? new THREE.MeshPhysicalMaterial({ ...matOpts, ior: 1.333 }) : new THREE.MeshStandardMaterial(matOpts);
+    const extinction = def.atmosphere && def.atmosphere.tauZenith;
     v.nightU = t.night ? { value: null } : null;
     v.pending = !!(t.map || t.night || t.clouds || t.rough);
-    patchBodyMaterial(mat, u, { blur: !!t.map, night: v.nightU, nightOn: this.shared.nightOn, lunar: def.photometry === 'lunar' });
+    patchBodyMaterial(mat, u, { blur: !!t.map, night: v.nightU, nightOn: this.shared.nightOn, lunar: def.photometry === 'lunar', extinction });
     v.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, ...seg), mat);
     v.mesh.userData.name = def.name;
     orient.add(v.mesh);
 
     if (t.clouds) {
       const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, depthWrite: false, roughness: 1 });
-      patchBodyMaterial(cm, u, {});
+      patchBodyMaterial(cm, u, { extinction });
       v.clouds = new THREE.Mesh(new THREE.SphereGeometry(1, ...seg), cm);
       v.clouds.visible = false;
       orient.add(v.clouds);
@@ -168,7 +172,11 @@ export class BodyViews {
       if (v.upgraded) return tx.dispose();
       mat.map = tx; mat.color.set(t.tint || 0xffffff); mat.needsUpdate = true;
     });
-    if (t.rough) this.tex(t.rough, false, tx => { mat.roughnessMap = tx; mat.needsUpdate = true; });
+    // The map gives the sea 0.33, far glossier than real wind-roughened water. Cox & Munk (1954):
+    // mean-square wave slope 0.003 + 0.00512·W, ≈ 0.04 at a typical 7 m/s wind, i.e. a GGX width
+    // α ≈ 0.28, which is roughness √α ≈ 0.53 in three.js; scaling the map by 1.6 gives that (land
+    // saturates at 1).
+    if (t.rough) this.tex(t.rough, false, tx => { mat.roughnessMap = tx; mat.roughness = 1.6; mat.needsUpdate = true; });
     if (t.night) this.tex(t.night, true, tx => { v.nightU.value = tx; });
     if (t.clouds) this.tex(t.clouds, false, tx => {
       v.clouds.material.alphaMap = tx; v.clouds.material.needsUpdate = true; v.clouds.visible = true;

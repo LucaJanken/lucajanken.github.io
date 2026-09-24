@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html><head>
+<title>Solar System · Luca Janken</title>
+<script>window.__resources = {
+ "sunMap": "textures/sunMap.jpg",
+ "mercuryMap": "textures/mercuryMap.jpg",
+ "mercuryBump": "textures/mercuryBump.jpg",
+ "venusMap": "textures/venusMap.jpg",
+ "venusBump": "textures/venusBump.jpg",
+ "marsMap": "textures/marsMap.jpg",
+ "marsBump": "textures/marsBump.jpg",
+ "jupiterMap": "textures/jupiterMap.jpg",
+ "saturnMap": "textures/saturnMap.jpg",
+ "saturnRingColor": "textures/saturnRingColor.jpg",
+ "saturnRingPattern": "textures/saturnRingPattern.gif",
+ "uranusMap": "textures/uranusMap.jpg",
+ "uranusRingColor": "textures/uranusRingColor.jpg",
+ "neptuneMap": "textures/neptuneMap.jpg",
+ "plutoMap": "textures/plutoMap.jpg",
+ "plutoBump": "textures/plutoBump.jpg",
+ "earthSpecular": "textures/earthSpecular.jpg",
+ "earthClouds": "textures/earthClouds.png",
+ "moonMap": "textures/moonMap.jpg",
+ "earthNormal": "textures/earthNormal.jpg",
+ "earthMap": "textures/earthMap.jpg",
+ "earthLights": "textures/earthLights.png",
+ "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "js/react.production.min.js",
+ "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "js/react-dom.production.min.js"
+};</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="js/dc-runtime.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/5d059369cf.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/d8b7f78ac1.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/126e74e6e3.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/b90ed5a8d4.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/5dc42711ab.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/c39ef070ae.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/9836f315b5.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/6c8912d7cf.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/4af8cef522.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/bb87500e32.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/a458a7d179.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/caa0275bed.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ed50e38341.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/3e942f428e.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/d32f0e0701.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/9a3103b2da.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d60fe850d1.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/b77f87bbc4.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/8b633380e5.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/69ec309900.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d8b4e62dbb.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/9a3103b2da.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d60fe850d1.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/b77f87bbc4.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/8b633380e5.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/69ec309900.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d8b4e62dbb.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/9a3103b2da.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d60fe850d1.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/b77f87bbc4.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/8b633380e5.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/69ec309900.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("fonts/d8b4e62dbb.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+  html, body { margin: 0; padding: 0; background: #04050a; overflow: hidden; }
+  * { box-sizing: border-box; }
+  a { color: oklch(0.80 0.11 230); text-decoration: none; }
+  a:hover { color: oklch(0.88 0.11 230); }
+  input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; height: 20px; margin: 0; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: rgba(255,255,255,0.22); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -5px; border-radius: 50%; background: oklch(0.84 0.13 78); }
+  input[type=range]::-moz-range-track { height: 2px; background: rgba(255,255,255,0.22); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: oklch(0.84 0.13 78); }
+  input[type=date], input[type=time] { color-scheme: dark; }
+  .om-lbl { position: absolute; transform: translate(-50%, -50%); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; padding: 2px 5px; border-radius: 2px; }
+  .om-scroll::-webkit-scrollbar { width: 6px; }
+  .om-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+</style>
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</helmet>
+<div style="position: relative; width: 100vw; height: 100vh; background: radial-gradient(120% 100% at 50% 0%, #0a0d18 0%, #04050a 60%); color: #e8eaf0; font-family: 'IBM Plex Sans', sans-serif; user-select: none;">
+
+  <div ref="{{ mount }}" style="position: absolute; inset: 0;"></div>
+  <div ref="{{ labels }}" style="position: absolute; inset: 0; pointer-events: none; overflow: hidden;"></div>
+
+  <div data-hud="1" style="position: absolute; top: 22px; left: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 320px;">
+    <div style="font: 300 12px/1 'IBM Plex Mono', monospace; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(232,234,240,0.42);">Ephemeris · {{ tzLabel }}</div>
+    <div style="font: 300 40px/1 'IBM Plex Mono', monospace; letter-spacing: -0.01em; color: #f4f5f8;">{{ timeStr }}</div>
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <div style="font: 400 15px/1 'IBM Plex Mono', monospace; letter-spacing: 0.06em; color: oklch(0.84 0.13 78);">{{ dateStr }}</div>
+      <div style="font: 400 10px/1 'IBM Plex Mono', monospace; color: rgba(232,234,240,0.3);">JD {{ jdStr }}</div>
+    </div>
+    <button type="button" sc-camel-on-click="{{ toggleGuide }}" style="{{ guideBtnStyle }}" style-hover="border-color: rgba(255,255,255,0.35);">{{ guideLabel }}</button>
+    <sc-if value="{{ guideOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top: 2px; width: 320px; padding: 12px 13px; background: rgba(9,11,19,0.66); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px); display: flex; flex-direction: column; gap: 8px; font: 400 10px/1.55 'IBM Plex Mono', monospace; color: rgba(232,234,240,0.6);">
+      <div style="letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,234,240,0.34); font-size: 9px;">Navigation</div>
+      <div>Drag to orbit · shift+drag or arrow keys to pan · scroll to zoom. Click any body, or pick one from the list, to focus it; Lock keeps the camera travelling with it.</div>
+      <div>Space plays and pauses. The <b style="font-weight: 500; color: rgba(232,234,240,0.78);">,</b> and <b style="font-weight: 500; color: rgba(232,234,240,0.78);">.</b> keys step one day back and forward.</div>
+      <div style="letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,234,240,0.34); font-size: 9px;">Scale</div>
+      <div>The default view compresses sizes and distances for legibility. Real scale is true to physics — most bodies become sub-pixel, so zoom in to find them.</div>
+      <div style="letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,234,240,0.34); font-size: 9px;">Eclipses</div>
+      <div>Every body spins at its true sidereal rate on its real axial tilt, so Earth's day side always matches the chosen instant. Solar and lunar shadows are computed from the real angular sizes of the Sun, Earth and Moon — visible in Real scale.</div>
+      <div style="letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,234,240,0.34); font-size: 9px;">Source</div>
+      <div>JPL SSD Keplerian elements (J2000), valid 1800–2050. Lunar position from a truncated ELP series.</div>
+    </div>
+    </sc-if>
+  </div>
+
+  <div data-hud="1" style="position: absolute; top: 22px; right: 24px; bottom: 164px; display: flex; flex-direction: column; justify-content: flex-start; gap: 9px; align-items: flex-end; pointer-events: none;">
+    <div ref="{{ focusList }}" sc-camel-on-click="{{ onFocusClick }}" class="om-scroll" style="width: 214px; flex: 0 1 auto; min-height: 96px; overflow-y: auto; overflow-x: hidden; pointer-events: auto; display: flex; flex-direction: column; background: rgba(9,11,19,0.62); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px);">
+      <div style="padding: 9px 11px 7px; font: 400 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(232,234,240,0.32);">Bodies</div>
+      <button type="button" data-body="Sun" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Sun</span></button>
+      <button type="button" data-body="Mercury" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Mercury</span></button>
+      <button type="button" data-body="Venus" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Venus</span></button>
+      <button type="button" data-body="Earth" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Earth</span><span data-sub="1" style="font-size: 9px; letter-spacing: 0.04em; color: rgba(232,234,240,0.34);">1</span></button>
+      <button type="button" data-body="Moon" data-parent="Earth" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Moon</button>
+      <button type="button" data-body="Mars" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Mars</span><span data-sub="2" style="font-size: 9px; letter-spacing: 0.04em; color: rgba(232,234,240,0.34);">2</span></button>
+      <button type="button" data-body="Phobos" data-parent="Mars" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Phobos</button>
+      <button type="button" data-body="Deimos" data-parent="Mars" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Deimos</button>
+      <button type="button" data-body="Jupiter" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Jupiter</span><span data-sub="4" style="font-size: 9px; letter-spacing: 0.04em; color: rgba(232,234,240,0.34);">4</span></button>
+      <button type="button" data-body="Io" data-parent="Jupiter" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Io</button>
+      <button type="button" data-body="Europa" data-parent="Jupiter" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Europa</button>
+      <button type="button" data-body="Ganymede" data-parent="Jupiter" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Ganymede</button>
+      <button type="button" data-body="Callisto" data-parent="Jupiter" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Callisto</button>
+      <button type="button" data-body="Saturn" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Saturn</span><span data-sub="1" style="font-size: 9px; letter-spacing: 0.04em; color: rgba(232,234,240,0.34);">1</span></button>
+      <button type="button" data-body="Titan" data-parent="Saturn" style="display: none; align-items: center; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.5); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 11px 6px 26px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);">Titan</button>
+      <button type="button" data-body="Uranus" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Uranus</span></button>
+      <button type="button" data-body="Neptune" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Neptune</span></button>
+      <button type="button" data-body="Pluto" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-left: 2px solid transparent; background: transparent; color: rgba(232,234,240,0.74); font: 400 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 11px; text-align: left; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05);"><span>Pluto</span></button>
+    </div>
+
+    <div style="width: 214px; flex: 0 0 auto; pointer-events: auto; padding: 10px; background: rgba(9,11,19,0.62); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px); display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+      <div style="grid-column: 1 / -1; padding: 0 1px 4px; font: 400 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(232,234,240,0.32);">View</div>
+      <button type="button" sc-camel-on-click="{{ toggleOrbits }}" style="{{ orbitsBtnStyle }}" style-hover="{{ orbitsBtnHoverStyle }}">Orbits</button>
+      <button type="button" sc-camel-on-click="{{ toggleLabels }}" style="{{ labelsBtnStyle }}" style-hover="{{ labelsBtnHoverStyle }}">Labels</button>
+      <button type="button" sc-camel-on-click="{{ toggleMoons }}" style="{{ moonsBtnStyle }}" style-hover="{{ moonsBtnHoverStyle }}">Moons</button>
+      <button type="button" sc-camel-on-click="{{ toggleScale }}" style="{{ scaleBtnStyle }}" style-hover="{{ scaleBtnHoverStyle }}">Real scale</button>
+      <button type="button" sc-camel-on-click="{{ toggleLock }}" style="{{ lockBtnStyle }}" style-hover="{{ lockBtnHoverStyle }}">{{ lockLabel }}</button>
+      <button type="button" sc-camel-on-click="{{ jumpToEclipse }}" style="grid-column: 1 / -1; margin-top: 3px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.7); font: 400 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 9px; cursor: pointer; text-align: left;" style-hover="border-color: rgba(255,255,255,0.35);">Go to total eclipse<br><span style="letter-spacing: 0.04em; text-transform: none; color: rgba(232,234,240,0.4);">2 Aug 2027 · 10:07 UT · Egypt</span></button>
+    </div>
+  </div>
+
+  <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ true }}">
+  <div data-hud="1" style="position: absolute; left: 24px; bottom: 24px; width: 316px; padding: 14px 15px; background: rgba(9,11,19,0.62); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px);">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+      <div style="font: 500 15px/1 'IBM Plex Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #f4f5f8;">{{ selName }}</div>
+      <div style="font: 400 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.84 0.13 78 / 0.85);">{{ selType }}</div>
+    </div>
+    <div style="margin-top: 8px; font: 300 11.5px/1.5 'IBM Plex Sans', sans-serif; color: rgba(232,234,240,0.58); text-wrap: pretty;">{{ selDesc }}</div>
+    <div style="margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,0.08); display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; font: 400 11px/1.3 'IBM Plex Mono', monospace;">
+      <span style="color: rgba(232,234,240,0.4);">Dist · Sun</span><span style="color: #dfe2ea;">{{ selDist }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Ecl. longitude</span><span style="color: #dfe2ea;">{{ selLon }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Ecl. latitude</span><span style="color: #dfe2ea;">{{ selLat }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Dist · Earth</span><span style="color: #dfe2ea;">{{ selGeo }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Radius</span><span style="color: #dfe2ea;">{{ selRadius }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Orbital period</span><span style="color: #dfe2ea;">{{ selPeriod }}</span>
+      <span style="color: rgba(232,234,240,0.4);">Sidereal day</span><span style="color: #dfe2ea;">{{ selDay }}</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <div data-hud="1" style="position: absolute; right: 24px; bottom: 24px; width: 366px; padding: 12px; background: rgba(9,11,19,0.62); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px); display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="font: 400 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(232,234,240,0.32);">Instant</div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <input type="date" min="1800-01-01" max="2050-12-31" value="{{ dateInput }}" sc-camel-on-change="{{ onDateChange }}" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: #e8eaf0; font: 400 11px/1 'IBM Plex Mono', monospace; padding: 7px 8px;">
+        <input type="time" value="{{ timeInput }}" sc-camel-on-change="{{ onTimeChange }}" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: #e8eaf0; font: 400 11px/1 'IBM Plex Mono', monospace; padding: 7px 8px;">
+        <button type="button" sc-camel-on-click="{{ goNow }}" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.75); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 10px; cursor: pointer;" style-hover="border-color: rgba(255,255,255,0.4);">Now</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 5px;">
+        <button type="button" sc-camel-on-click="{{ stepBack }}" title="Back one day  ( , )" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.75); font: 400 10px/1 'IBM Plex Mono', monospace; padding: 9px 10px; cursor: pointer;" style-hover="border-color: rgba(255,255,255,0.4);">◂ 1d</button>
+        <button type="button" sc-camel-on-click="{{ togglePlay }}" style="border: 1px solid oklch(0.84 0.13 78 / 0.5); background: oklch(0.84 0.13 78 / 0.12); color: oklch(0.9 0.1 78); font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; padding: 9px 16px; min-width: 84px; cursor: pointer;" style-hover="background: oklch(0.84 0.13 78 / 0.22);">{{ playLabel }}</button>
+        <button type="button" sc-camel-on-click="{{ stepFwd }}" title="Forward one day  ( . )" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.75); font: 400 10px/1 'IBM Plex Mono', monospace; padding: 9px 10px; cursor: pointer;" style-hover="border-color: rgba(255,255,255,0.4);">1d ▸</button>
+      </div>
+      <button type="button" sc-camel-on-click="{{ toggleDir }}" title="Run time backwards" style="{{ dirBtnStyle }}" style-hover="{{ dirBtnHoverStyle }}">{{ dirLabel }}</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button type="button" sc-camel-on-click="{{ nudgeDown }}" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.6); font: 400 11px/1 'IBM Plex Mono', monospace; padding: 5px 8px; cursor: pointer;" style-hover="border-color: rgba(255,255,255,0.35);">−</button>
+      <input type="range" min="0" max="8.2" step="0.01" value="{{ speed }}" sc-camel-on-change="{{ onSpeed }}" sc-camel-on-input="{{ onSpeed }}" style="flex: 1; cursor: pointer;">
+      <button type="button" sc-camel-on-click="{{ nudgeUp }}" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.6); font: 400 11px/1 'IBM Plex Mono', monospace; padding: 5px 8px; cursor: pointer;" style-hover="border-color: rgba(255,255,255,0.35);">+</button>
+      <div style="min-width: 132px; text-align: right; font: 400 10px/1 'IBM Plex Mono', monospace; color: rgba(232,234,240,0.5); letter-spacing: 0.04em;">{{ rateStr }}</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;startRealScale&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Startup&quot;},&quot;initialSpeed&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;max&quot;:8.2,&quot;step&quot;:0.01,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Startup&quot;},&quot;showStars&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Scene&quot;},&quot;cityLights&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Scene&quot;},&quot;shadowContrast&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.5,&quot;min&quot;:0.15,&quot;max&quot;:1,&quot;step&quot;:0.01,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Scene&quot;}}">
+const DEG = Math.PI / 180;
+const AU_KM = 149597870.7;
+const J2000 = 2451545.0;
+
+// JPL SSD "Approximate Positions of the Planets" (Standish), J2000 elements + rates/century
+// a(AU) e I(deg) L(deg) longPeri(deg) longNode(deg)
+const ELEMENTS = {
+  Mercury: [[0.38709927, 0.00000037], [0.20563593, 0.00001906], [7.00497902, -0.00594749], [252.25032350, 149472.67411175], [77.45779628, 0.16047689], [48.33076593, -0.12534081]],
+  Venus:   [[0.72333566, 0.00000390], [0.00677672, -0.00004107], [3.39467605, -0.00078890], [181.97909950, 58517.81538729], [131.60246718, 0.00268329], [76.67984255, -0.27769418]],
+  Earth:   [[1.00000261, 0.00000562], [0.01671123, -0.00004392], [-0.00001531, -0.01294668], [100.46457166, 35999.37244981], [102.93768193, 0.32327364], [0.0, 0.0]],
+  Mars:    [[1.52371034, 0.00001847], [0.09339410, 0.00007882], [1.84969142, -0.00813131], [-4.55343205, 19140.30268499], [-23.94362959, 0.44441088], [49.55953891, -0.29257343]],
+  Jupiter: [[5.20288700, -0.00011607], [0.04838624, -0.00013253], [1.30439695, -0.00183714], [34.39644051, 3034.74612775], [14.72847983, 0.21252668], [100.47390909, 0.20469106]],
+  Saturn:  [[9.53667594, -0.00125060], [0.05386179, -0.00050991], [2.48599187, 0.00193609], [49.95424423, 1222.49362201], [92.59887831, -0.41897216], [113.66242448, -0.28867794]],
+  Uranus:  [[19.18916464, -0.00196176], [0.04725744, -0.00004397], [0.77263783, -0.00242939], [313.23810451, 428.48202785], [170.95427630, 0.40805281], [74.01692503, 0.04240589]],
+  Neptune: [[30.06992276, 0.00026291], [0.00859048, 0.00005105], [1.77004347, 0.00035372], [-55.12002969, 218.45945325], [44.96476227, -0.32241464], [131.78422574, -0.00508664]],
+  Pluto:   [[39.48211675, -0.00031596], [0.24882730, 0.00005170], [17.14001206, 0.00004818], [238.92903833, 145.20780515], [224.06891629, -0.04062942], [110.30393684, -0.01183482]]
+};
+
+const TEXA = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';
+const TEXB = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r137/examples/textures/planets/';
+
+// When this file is bundled as a standalone/public artifact, the bundler inlines these into
+// window.__resources[id] as blob URLs (they're only discoverable via the matching meta tags in
+// <helmet> since they're referenced as JS strings, not HTML attributes). Falls back to the raw
+// CDN URL for normal in-editor preview.
+const RESOURCE_IDS = {};
+RESOURCE_IDS[TEXA + 'sunmap.jpg'] = 'sunMap';
+RESOURCE_IDS[TEXA + 'mercurymap.jpg'] = 'mercuryMap';
+RESOURCE_IDS[TEXA + 'mercurybump.jpg'] = 'mercuryBump';
+RESOURCE_IDS[TEXA + 'venusmap.jpg'] = 'venusMap';
+RESOURCE_IDS[TEXA + 'venusbump.jpg'] = 'venusBump';
+RESOURCE_IDS[TEXA + 'marsmap1k.jpg'] = 'marsMap';
+RESOURCE_IDS[TEXA + 'marsbump1k.jpg'] = 'marsBump';
+RESOURCE_IDS[TEXA + 'jupitermap.jpg'] = 'jupiterMap';
+RESOURCE_IDS[TEXA + 'saturnmap.jpg'] = 'saturnMap';
+RESOURCE_IDS[TEXA + 'saturnringcolor.jpg'] = 'saturnRingColor';
+RESOURCE_IDS[TEXA + 'saturnringpattern.gif'] = 'saturnRingPattern';
+RESOURCE_IDS[TEXA + 'uranusmap.jpg'] = 'uranusMap';
+RESOURCE_IDS[TEXA + 'uranusringcolour.jpg'] = 'uranusRingColor';
+RESOURCE_IDS[TEXA + 'neptunemap.jpg'] = 'neptuneMap';
+RESOURCE_IDS[TEXA + 'plutomap1k.jpg'] = 'plutoMap';
+RESOURCE_IDS[TEXA + 'plutobump1k.jpg'] = 'plutoBump';
+RESOURCE_IDS[TEXB + 'earth_atmos_4096.jpg'] = 'earthMap';
+RESOURCE_IDS[TEXB + 'earth_specular_2048.jpg'] = 'earthSpecular';
+RESOURCE_IDS[TEXB + 'earth_normal_2048.jpg'] = 'earthNormal';
+RESOURCE_IDS[TEXB + 'earth_clouds_1024.png'] = 'earthClouds';
+RESOURCE_IDS[TEXB + 'moon_1024.jpg'] = 'moonMap';
+RESOURCE_IDS[TEXB + 'earth_lights_2048.png'] = 'earthLights';
+
+// rotH = sidereal rotation period in hours (always positive: retrograde spin is carried by an
+// obliquity past 90°, the IAU convention). obl = axial tilt in degrees. retro flags the display.
+const BODIES = [
+  { name: 'Mercury', km: 2440, color: 0x9a8f86, period: '87.97 d', rotH: 1407.6, obl: 0.034, type: 'Terrestrial', map: TEXA + 'mercurymap.jpg', bump: TEXA + 'mercurybump.jpg', bumpScale: 0.0016,
+    desc: 'Airless and cratered, locked in a 3:2 spin–orbit resonance with the Sun.' },
+  { name: 'Venus', km: 6052, color: 0xd9b98a, period: '224.70 d', rotH: 5832.5, obl: 177.36, retro: true, type: 'Terrestrial', map: TEXA + 'venusmap.jpg', bump: TEXA + 'venusbump.jpg', bumpScale: 0.0008,
+    desc: 'A runaway greenhouse: 92 bar of carbon dioxide holding the surface at 464 °C.' },
+  { name: 'Earth', km: 6371, color: 0x3f7fd0, period: '365.26 d', rotH: 23.9345, obl: 23.4393, type: 'Terrestrial',
+    desc: 'The only world known to hold liquid water — and life — at its surface.' },
+  { name: 'Mars', km: 3390, color: 0xc1502a, period: '686.98 d', rotH: 24.6229, obl: 25.19, type: 'Terrestrial', map: TEXA + 'marsmap1k.jpg', bump: TEXA + 'marsbump1k.jpg', bumpScale: 0.0022,
+    desc: 'A cold desert carrying the tallest volcano and deepest canyon in the system.' },
+  { name: 'Jupiter', km: 69911, color: 0xd6b48a, period: '11.86 y', rotH: 9.925, obl: 3.13, type: 'Gas giant', map: TEXA + 'jupitermap.jpg',
+    desc: 'Holds 2.5× the mass of every other planet combined; its storm bands never settle.' },
+  { name: 'Saturn', km: 58232, color: 0xe0c9a0, period: '29.45 y', rotH: 10.656, obl: 26.73, type: 'Gas giant', map: TEXA + 'saturnmap.jpg',
+    desc: 'Less dense than water, wrapped in rings that are 99% water ice.' },
+  { name: 'Uranus', km: 25362, color: 0x9fd4dd, period: '84.01 y', rotH: 17.24, obl: 97.77, retro: true, type: 'Ice giant', map: TEXA + 'uranusmap.jpg',
+    desc: 'Tipped 98° by an ancient impact, it rolls around its orbit on its side.' },
+  { name: 'Neptune', km: 24622, color: 0x4a6fd0, period: '164.79 y', rotH: 16.11, obl: 28.32, type: 'Ice giant', map: TEXA + 'neptunemap.jpg',
+    desc: 'The outermost planet, driving the fastest winds measured anywhere — 2,100 km/h.' },
+  { name: 'Pluto', km: 1188, color: 0xb8a795, period: '247.94 y', rotH: 153.293, obl: 122.53, retro: true, type: 'Dwarf planet', map: TEXA + 'plutomap1k.jpg', bump: TEXA + 'plutobump1k.jpg', bumpScale: 0.0014,
+    desc: 'A nitrogen-ice dwarf whose orbit crosses inside Neptune’s for twenty years at a time.' }
+];
+
+const SUN = { name: 'Sun', km: 696340, type: 'G2V star', rotH: 609.12,
+  desc: 'A main-sequence dwarf holding 99.86% of the mass of the solar system.' };
+
+const MOONS = {
+  Earth: [{ name: 'Moon', km: 1737, color: 0xbfbcb6, d: 384400, P: 27.321661, type: 'Moon · Earth',
+    desc: 'Tidally locked to Earth, raising its tides and steadying its axial tilt.' }],
+  Jupiter: [
+    { name: 'Io', km: 1822, color: 0xd8c86a, d: 421700, P: 1.769137786, L0: 342.021, type: 'Moon · Jupiter', bands: ['#d9c46a', '#b89a3f', '#e8dfa0'],
+      desc: 'The most volcanically active body in the solar system, squeezed by Jupiter’s tides.' },
+    { name: 'Europa', km: 1561, color: 0xcfc4b0, d: 671100, P: 3.551181041, L0: 171.016, type: 'Moon · Jupiter', bands: ['#d6cdbd', '#bfae97', '#efe9df'],
+      desc: 'A cracked ice shell over a global saltwater ocean twice Earth’s in volume.' },
+    { name: 'Ganymede', km: 2634, color: 0xa89a86, d: 1070400, P: 7.15455296, L0: 317.540, type: 'Moon · Jupiter', bands: ['#a3968a', '#8a7c6e', '#bcb0a4'],
+      desc: 'The largest moon in the system — wider than Mercury, and the only one with a magnetic field.' },
+    { name: 'Callisto', km: 2410, color: 0x8b7f70, d: 1882700, P: 16.6890184, L0: 181.408, type: 'Moon · Jupiter', bands: ['#8b7f70', '#6e6255', '#a49788'],
+      desc: 'The most heavily cratered surface known: geologically dead for four billion years.' }
+  ],
+  Saturn: [{ name: 'Titan', km: 2575, color: 0xd2a35c, d: 1221870, P: 15.945421, L0: 30.0, type: 'Moon · Saturn', bands: ['#d2a35c', '#b8853f', '#e6c489'],
+    desc: 'Thick nitrogen air, methane rain and hydrocarbon lakes — the only moon with weather.' }],
+  Mars: [
+    { name: 'Phobos', km: 11, color: 0x9a8c80, d: 9376, P: 0.31891023, L0: 100.0, type: 'Moon · Mars', bands: ['#8f857c', '#6e655d', '#a49a90'],
+      desc: 'Spiralling inward by 2 cm a year; it will break up into a ring in ~50 million years.' },
+    { name: 'Deimos', km: 6, color: 0x9a8c80, d: 23458, P: 1.2624407, L0: 220.0, type: 'Moon · Mars', bands: ['#8f857c', '#6e655d', '#a49a90'],
+      desc: 'A 12 km rubble pile, most likely a captured asteroid, on a near-circular orbit.' }
+  ]
+};
+
+const RADIUS_KM = { Sun: SUN.km };
+BODIES.forEach(b => { RADIUS_KM[b.name] = b.km; });
+Object.keys(MOONS).forEach(p => MOONS[p].forEach(m => { RADIUS_KM[m.name] = m.km; }));
+
+// "Real scale" mode: distances use 34 scene units / AU (set by orbitScale). This is the matching
+// km-to-unit factor, so sizes are drawn at their true physical ratio to that same distance scale.
+const UNIT_PER_AU = 34;
+const UNIT_PER_KM = UNIT_PER_AU / AU_KM;
+
+// Orbit paths are polylines; the chord between samples cuts inside the true ellipse. In real scale
+// a body's radius is ~1e-7 of its orbit, so a coarse path visibly misses the body it belongs to.
+// 4096 samples put the worst-case sagitta (Pluto) at roughly one Pluto radius.
+const ORBIT_SEGS = 4096;
+const MOON_SEGS = 256;
+
+function jdFromMs(ms) { return ms / 86400000 + 2440587.5; }
+function norm360(d) { return ((d % 360) + 360) % 360; }
+
+// Greenwich mean sidereal time in degrees — the right ascension the prime meridian points at
+function gmst(jd) {
+  const d = jd - J2000, T = d / 36525.0;
+  return norm360(280.46061837 + 360.98564736629 * d + 0.000387933 * T * T - (T * T * T) / 38710000);
+}
+
+function planetState(name, T) {
+  const E = ELEMENTS[name];
+  const a = E[0][0] + E[0][1] * T;
+  const e = E[1][0] + E[1][1] * T;
+  const I = (E[2][0] + E[2][1] * T) * DEG;
+  const L = E[3][0] + E[3][1] * T;
+  const peri = E[4][0] + E[4][1] * T;
+  const node = (E[5][0] + E[5][1] * T) * DEG;
+  const w = (peri - E[5][0] - E[5][1] * T) * DEG;
+  let M = norm360(L - peri);
+  if (M > 180) M -= 360;
+  M *= DEG;
+  let Ea = M;
+  for (let i = 0; i < 8; i++) Ea -= (Ea - e * Math.sin(Ea) - M) / (1 - e * Math.cos(Ea));
+  const xp = a * (Math.cos(Ea) - e);
+  const yp = a * Math.sqrt(1 - e * e) * Math.sin(Ea);
+  const cw = Math.cos(w), sw = Math.sin(w), cn = Math.cos(node), sn = Math.sin(node), ci = Math.cos(I), si = Math.sin(I);
+  const x = (cw * cn - sw * sn * ci) * xp + (-sw * cn - cw * sn * ci) * yp;
+  const y = (cw * sn + sw * cn * ci) * xp + (-sw * sn + cw * cn * ci) * yp;
+  const z = (sw * si) * xp + (cw * si) * yp;
+  return { x: x, y: y, z: z, a: a, e: e, I: I, w: w, node: node };
+}
+
+// Truncated ELP (Meeus, low precision) — geocentric ecliptic position of the Moon, km
+function moonGeo(T) {
+  const Lp = 218.3164477 + 481267.88123421 * T;
+  const D = (297.8501921 + 445267.1114034 * T) * DEG;
+  const M = (357.5291092 + 35999.0502909 * T) * DEG;
+  const Mp = (134.9633964 + 477198.8675055 * T) * DEG;
+  const F = (93.2720950 + 483202.0175233 * T) * DEG;
+  const lon = (Lp + 6.289 * Math.sin(Mp) + 1.274 * Math.sin(2 * D - Mp) + 0.658 * Math.sin(2 * D)
+    + 0.214 * Math.sin(2 * Mp) - 0.186 * Math.sin(M) - 0.114 * Math.sin(2 * F)) * DEG;
+  const lat = (5.128 * Math.sin(F) + 0.281 * Math.sin(Mp + F) - 0.278 * Math.sin(F - Mp) - 0.173 * Math.sin(2 * D - F)) * DEG;
+  const r = 385001 - 20905 * Math.cos(Mp) - 3699 * Math.cos(2 * D - Mp) - 2956 * Math.cos(2 * D) - 570 * Math.cos(2 * Mp);
+  return { x: r * Math.cos(lat) * Math.cos(lon), y: r * Math.cos(lat) * Math.sin(lon), z: r * Math.sin(lat) };
+}
+
+// Eclipses are shaded analytically instead of with a shadow map: for each fragment we work out how
+// much of the Sun's disk the occluder covers, from the true angular radii. No depth buffer, so no
+// shadow acne, no flicker, and the umbra/penumbra sizes are physically right.
+const DISK_GLSL = [
+  'float omDisk(float R, float r, float d) {',
+  '  if (d >= R + r) return 0.0;',
+  '  if (d <= abs(R - r)) return clamp((r * r) / (R * R), 0.0, 1.0);',
+  '  float R2 = R * R, r2 = r * r, d2 = d * d;',
+  '  float a1 = acos(clamp((d2 + R2 - r2) / (2.0 * d * R), -1.0, 1.0));',
+  '  float a2 = acos(clamp((d2 + r2 - R2) / (2.0 * d * r), -1.0, 1.0));',
+  '  float area = R2 * (a1 - 0.5 * sin(2.0 * a1)) + r2 * (a2 - 0.5 * sin(2.0 * a2));',
+  '  return clamp(area / (3.141592653589793 * R2), 0.0, 1.0);',
+  '}'
+].join('\n');
+
+class Component extends DCLogic {
+  state = { timeStr: '', dateStr: '', tzLabel: '', jdStr: '', dateInput: '', timeInput: '', playing: true, speed: 4.94,
+    rateStr: '', guideOpen: false, selName: 'Sun', selType: '', selDesc: '', selDist: '—', selLon: '—', selLat: '—',
+    selGeo: '—', selRadius: '—', selPeriod: '—', selDay: '—' };
+
+  constructor(p) {
+    super(p);
+    this.state = Object.assign({}, this.state, { speed: typeof p.initialSpeed === 'number' ? p.initialSpeed : 4.94 });
+    this.simMs = Date.now();
+    this.selected = 'Sun';
+    this.locked = false;
+    this.lockPrev = null;
+    this.dir = 1;
+    this.show = { orbits: true, labels: true, moons: true, trueScale: false };
+    this.mount = React.createRef();
+    this.labels = React.createRef();
+    this.focusList = React.createRef();
+    this.lastHud = 0;
+  }
+
+  componentDidMount() {
+    this.waitForThree();
+    this.paintFocus();
+    this.onKey = e => {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      // OrbitControls pans on the bare arrow keys, so day-stepping lives on , / . (shift+arrow too).
+      // Space is left alone while a button holds focus, or it would fire twice.
+      if (e.code === 'Space') {
+        if (t && t.tagName === 'BUTTON') return;
+        e.preventDefault();
+        this.setState(s => ({ playing: !s.playing }));
+      } else if (e.key === ',' || (e.key === 'ArrowLeft' && e.shiftKey)) { this.simMs -= 86400000; this.resetTrails(); }
+      else if (e.key === '.' || (e.key === 'ArrowRight' && e.shiftKey)) { this.simMs += 86400000; this.resetTrails(); }
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentDidUpdate() {
+    this.paintFocus();
+    if (this.shGamma && typeof this.props.shadowContrast === 'number') this.shGamma.value = this.props.shadowContrast;
+    if (this.eU) this.eU.uLightsOn.value = this.props.cityLights === false ? 0 : 1;
+  }
+  componentWillUnmount() {
+    this.dead = true;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onKey);
+    if (this.ro) this.ro.disconnect();
+    if (this.renderer) {
+      this.renderer.domElement.removeEventListener('pointerdown', this.onDown);
+      this.renderer.domElement.removeEventListener('pointerup', this.onUp);
+      this.renderer.dispose();
+    }
+  }
+
+  // list highlight, plus: a planet's moons are only listed while that system is selected
+  paintFocus() {
+    const el = this.focusList.current;
+    if (!el) return;
+    const sel = this.selected;
+    const selParent = sel && this.moonObjs && this.moonObjs[sel] ? this.moonObjs[sel].parent : sel;
+    el.querySelectorAll('button[data-body]').forEach(b => {
+      const name = b.getAttribute('data-body');
+      const parent = b.getAttribute('data-parent');
+      const on = name === sel;
+      b.style.borderLeftColor = on ? 'oklch(0.84 0.13 78)' : 'transparent';
+      b.style.background = on ? 'oklch(0.84 0.13 78 / 0.1)' : 'transparent';
+      if (parent) {
+        const open = parent === selParent && this.show.moons;
+        b.style.display = open ? 'flex' : 'none';
+        b.style.color = on ? 'oklch(0.9 0.1 78)' : 'rgba(232,234,240,0.5)';
+      } else {
+        b.style.color = on ? 'oklch(0.9 0.1 78)' : 'rgba(232,234,240,0.74)';
+        const sub = b.querySelector('[data-sub]');
+        if (sub) sub.textContent = sub.getAttribute('data-sub') + (name === selParent && this.show.moons ? ' ▾' : ' ▸');
+      }
+    });
+  }
+
+  waitForThree() {
+    if (this.dead) return;
+    const m = this.mount.current;
+    if (window.THREE && window.THREE.OrbitControls && m && m.clientWidth > 0 && m.clientHeight > 0) this.init();
+    else setTimeout(() => this.waitForThree(), 60);
+  }
+
+  // ---- display scaling ----
+  orbitScale(au) { return this.show.trueScale ? au * UNIT_PER_AU : 60 * Math.pow(au, 0.42); }
+  bodyRadius(km) {
+    if (this.show.trueScale) return Math.max(km * UNIT_PER_KM, 0.00001);
+    return 1.6 * Math.pow(km / 6371, 0.32);
+  }
+
+  tex(url, srgb) {
+    const rid = RESOURCE_IDS[url];
+    const src = (rid && window.__resources && window.__resources[rid]) ? window.__resources[rid] : url;
+    const t = this.loader.load(src);
+    t.anisotropy = 8;
+    if (srgb && 'encoding' in t) t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+
+  // procedural fallback for the small moons, which have no published map at this resolution
+  makeTexture(bands) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = bands[0]; g.fillRect(0, 0, 512, 256);
+    for (let i = 0; i < 420; i++) {
+      g.fillStyle = bands[(i % (bands.length - 1)) + 1];
+      g.globalAlpha = 0.18 + Math.random() * 0.3;
+      const r = 6 + Math.random() * 34;
+      g.beginPath();
+      g.ellipse(Math.random() * 512, Math.random() * 256, r, r * (0.4 + Math.random() * 0.6), 0, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c);
+    if ('encoding' in t) t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+
+  // a ring whose UVs run radially, so a 1-D ring strip texture maps correctly
+  makeRing(inner, outer, mapUrl, alphaUrl, opacity) {
+    const geo = new THREE.RingGeometry(inner, outer, 128, 1);
+    const pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const r = Math.sqrt(pos.getX(i) * pos.getX(i) + pos.getY(i) * pos.getY(i));
+      uv.setXY(i, (r - inner) / (outer - inner), 0.5);
+    }
+    const mat = new THREE.MeshBasicMaterial({ map: this.tex(mapUrl, true), transparent: true, opacity: opacity, side: THREE.DoubleSide, depthWrite: false });
+    if (alphaUrl) mat.alphaMap = this.tex(alphaUrl, false);
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = Math.PI / 2;
+    m.userData.rk = 1;
+    return m;
+  }
+
+  makeMoonOrbitLine(color) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(3 * MOON_SEGS), 3));
+    return new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.3 }));
+  }
+
+  glowTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grd.addColorStop(0, 'rgba(255,236,190,0.95)');
+    grd.addColorStop(0.18, 'rgba(255,206,120,0.55)');
+    grd.addColorStop(0.45, 'rgba(255,164,64,0.16)');
+    grd.addColorStop(1, 'rgba(255,150,40,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+    return new THREE.CanvasTexture(c);
+  }
+
+  // shade a material by how much of the Sun an occluder covers; optionally add night-side lights
+  patchEclipse(mat, u) {
+    mat.onBeforeCompile = sh => {
+      Object.keys(u).forEach(k => { sh.uniforms[k] = u[k]; });
+      sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      let head = 'varying vec3 vWP;\nuniform vec3 uOcc;\nuniform float uOccR;\nuniform float uSunR;\nuniform vec3 uSelf;\nuniform float uShGamma;\n';
+      if (u.uLights) head += 'uniform sampler2D uLights;\nuniform float uLightsOn;\n';
+      head += DISK_GLSL + '\n';
+      let body = [
+        '  vec3 toSun = -vWP; float dS = length(toSun); vec3 nS = toSun / dS;',
+        '  float omShade = 1.0;',
+        '  if (uOccR > 0.0) {',
+        '    vec3 toOcc = uOcc - vWP; float dO = length(toOcc);',
+        '    if (dO < dS) {',
+        '      float cov = omDisk(asin(clamp(uSunR / dS, 0.0, 1.0)), asin(clamp(uOccR / dO, 0.0, 1.0)),',
+        '                         acos(clamp(dot(nS, toOcc / dO), -1.0, 1.0)));',
+        // The umbra is ~100 km wide against a 12,742 km Earth, while the penumbra spans thousands
+        // of km at only a few percent coverage. Linear shading therefore renders as almost nothing.
+        // A gamma on coverage keeps full totality black but lifts the partial phase into view.
+        '      omShade = 1.0 - 0.995 * pow(cov, uShGamma);',
+        '    }',
+        '  }',
+        // cool the shaded side slightly: light in the penumbra is limb-darkened and scattered blue,
+        // and the hue shift makes a shallow shadow legible over bright ocean and cloud
+        '  gl_FragColor.rgb *= omShade * mix(vec3(1.0), vec3(0.62, 0.69, 0.90), 1.0 - omShade);'
+      ].join('\n');
+      if (u.uLights) body += [
+        '',
+        '  float omNight = clamp(-dot(normalize(vWP - uSelf), nS) * 3.0, 0.0, 1.0);',
+        '  gl_FragColor.rgb += texture2D(uLights, vUv).rgb * omNight * uLightsOn * 0.55;'
+      ].join('\n');
+      // Applied AFTER <encodings_fragment>, i.e. in display space. Multiplying in linear space
+      // instead sends a 0.5%-linear umbra out at ~7% on screen once sRGB encoding lifts it — the
+      // shadow then reads as dim grey rather than dark.
+      sh.fragmentShader = head + sh.fragmentShader.replace(
+        '#include <encodings_fragment>', '#include <encodings_fragment>\n' + body);
+    };
+    mat.customProgramCacheKey = () => 'omEclipse' + (u.uLights ? 'L' : '');
+  }
+
+  init() {
+    const mount = this.mount.current;
+    this.loader = new THREE.TextureLoader();
+
+    const w = mount.clientWidth, h = mount.clientHeight;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(w, h);
+    if ('outputEncoding' in renderer) renderer.outputEncoding = THREE.sRGBEncoding;
+    mount.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 20000);
+    camera.position.set(0, 170, 300);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.minDistance = 1.2;
+    controls.maxDistance = 6000;
+    this.renderer = renderer; this.scene = scene; this.camera = camera; this.controls = controls;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.045));
+    scene.add(new THREE.PointLight(0xfff4e2, 2.1, 0, 0.0));
+
+    // shared eclipse uniforms: Earth is shaded by the Moon, the Moon by Earth
+    const zero = () => new THREE.Vector3();
+    // 1.0 is physically linear; lower values widen the visible penumbra without touching the umbra
+    this.shGamma = { value: typeof this.props.shadowContrast === 'number' ? this.props.shadowContrast : 0.5 };
+    this.eU = { uOcc: { value: zero() }, uOccR: { value: 0 }, uSunR: { value: 0 }, uSelf: { value: zero() },
+      uShGamma: this.shGamma,
+      uLights: { value: this.tex(TEXB + 'earth_lights_2048.png', false) },
+      uLightsOn: { value: this.props.cityLights === false ? 0 : 1 } };
+    this.mU = { uOcc: { value: zero() }, uOccR: { value: 0 }, uSunR: { value: 0 }, uSelf: { value: zero() }, uShGamma: this.shGamma };
+    // the cloud shell is shaded by the same occluder as the ground it sits on, minus the city lights
+    this.cU = { uOcc: this.eU.uOcc, uOccR: this.eU.uOccR, uSunR: this.eU.uSunR, uSelf: this.eU.uSelf, uShGamma: this.shGamma };
+
+    // starfield
+    const sPos = [];
+    for (let i = 0; i < 4500; i++) {
+      const v = new THREE.Vector3().setFromSphericalCoords(4000 + Math.random() * 3000, Math.acos(2 * Math.random() - 1), Math.random() * Math.PI * 2);
+      sPos.push(v.x, v.y, v.z);
+    }
+    const sGeo = new THREE.BufferGeometry();
+    sGeo.setAttribute('position', new THREE.Float32BufferAttribute(sPos, 3));
+    const stars = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xdfe6f5, size: 7, sizeAttenuation: true, transparent: true, opacity: 0.75 }));
+    stars.visible = this.props.showStars !== false;
+    scene.add(stars);
+
+    // sun
+    this.sun = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32),
+      new THREE.MeshBasicMaterial({ map: this.tex(TEXA + 'sunmap.jpg', true) }));
+    scene.add(this.sun);
+    this.sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTexture(), color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    scene.add(this.sunGlow);
+
+    // ecliptic reference grid — faded out when the camera comes in close, where its rings would
+    // otherwise cut across the planet you are looking at
+    const grid = new THREE.PolarGridHelper(300, 8, 6, 96, 0x2a3346, 0x1b2130);
+    grid.material.transparent = true; grid.material.opacity = 0.35;
+    grid.material.depthWrite = false;
+    this.grid = grid;
+    scene.add(grid);
+
+    this.objects = { Sun: this.sun };
+    this.orbitLines = {};
+    this.moonObjs = {};
+    this.labelEls = {};
+    this.leaderEls = {};
+    this.pickables = [this.sun];
+    this.sun.userData.name = 'Sun';
+    this.addLabel('Sun', '#ffd68a');
+
+    BODIES.forEach(b => {
+      const group = new THREE.Group();
+      const tilt = new THREE.Group();
+      tilt.rotation.x = -b.obl * DEG;
+      group.add(tilt);
+      let mesh;
+      if (b.name === 'Earth') {
+        const mat = new THREE.MeshPhongMaterial({
+          map: this.tex(TEXB + 'earth_atmos_4096.jpg', true),
+          specularMap: this.tex(TEXB + 'earth_specular_2048.jpg', false),
+          normalMap: this.tex(TEXB + 'earth_normal_2048.jpg', false),
+          normalScale: new THREE.Vector2(0.85, 0.85), specular: 0x2a3038, shininess: 14
+        });
+        this.patchEclipse(mat, this.eU);
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), mat);
+        const cloudMat = new THREE.MeshPhongMaterial({ map: this.tex(TEXB + 'earth_clouds_1024.png', true), transparent: true, depthWrite: false, opacity: 0.85 });
+        this.patchEclipse(cloudMat, this.cU);
+        const clouds = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), cloudMat);
+        clouds.userData.rk = 1.007;
+        tilt.add(clouds);
+      } else {
+        const mat = new THREE.MeshStandardMaterial({ map: this.tex(b.map, true), roughness: 0.88, metalness: 0.0 });
+        if (b.bump) { mat.bumpMap = this.tex(b.bump, false); mat.bumpScale = b.bumpScale; }
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), mat);
+      }
+      mesh.userData.name = b.name;
+      mesh.userData.rk = 1;
+      tilt.add(mesh);
+      if (b.name === 'Saturn') tilt.add(this.makeRing(1.28, 2.35, TEXA + 'saturnringcolor.jpg', TEXA + 'saturnringpattern.gif', 0.9));
+      if (b.name === 'Uranus') tilt.add(this.makeRing(1.64, 2.0, TEXA + 'uranusringcolour.jpg', null, 0.5));
+      scene.add(group);
+      this.objects[b.name] = group;
+      group.userData.core = mesh;
+      this.pickables.push(mesh);
+      this.addLabel(b.name, '#' + new THREE.Color(b.color).getHexString());
+
+      const oGeo = new THREE.BufferGeometry();
+      oGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(3 * (ORBIT_SEGS + 1)), 3));
+      const line = new THREE.LineLoop(oGeo, new THREE.LineBasicMaterial({ color: b.color, transparent: true, opacity: 0.28 }));
+      scene.add(line);
+      this.orbitLines[b.name] = line;
+
+      (MOONS[b.name] || []).forEach(m => {
+        const isLuna = m.name === 'Moon';
+        let moonMat;
+        if (isLuna) {
+          moonMat = new THREE.MeshStandardMaterial({ map: this.tex(TEXB + 'moon_1024.jpg', true), roughness: 0.95 });
+          this.patchEclipse(moonMat, this.mU);
+        } else {
+          moonMat = new THREE.MeshStandardMaterial({ map: this.makeTexture(m.bands), roughness: 0.92 });
+        }
+        const mm = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), moonMat);
+        mm.userData.name = m.name;
+        group.add(mm);
+        const mLine = this.makeMoonOrbitLine(m.color);
+        group.add(mLine);
+        this.moonObjs[m.name] = { mesh: mm, def: m, parent: b.name, orbitLine: mLine, lastOrbitJD: undefined, lastScaleMode: undefined };
+        this.pickables.push(mm);
+        this.addLabel(m.name, '#' + new THREE.Color(m.color).getHexString(), true);
+      });
+    });
+
+    this.applyScaleMode();
+    if (this.props.startRealScale) {
+      this.setScale(true);
+      camera.position.set(0, 600, 1100);
+    }
+
+    this.onResize = () => {
+      const W = mount.clientWidth, H = mount.clientHeight;
+      if (!W || !H) return;
+      camera.aspect = W / H; camera.updateProjectionMatrix(); renderer.setSize(W, H);
+      this.hudBoxes = null;
+    };
+    window.addEventListener('resize', this.onResize);
+    if (window.ResizeObserver) {
+      this.ro = new ResizeObserver(this.onResize);
+      this.ro.observe(mount);
+    }
+
+    this.ray = new THREE.Raycaster();
+    this.onDown = e => { this.downAt = [e.clientX, e.clientY]; };
+    renderer.domElement.addEventListener('pointerdown', this.onDown);
+    this.onUp = e => {
+      if (!this.downAt) return;
+      if (Math.abs(e.clientX - this.downAt[0]) + Math.abs(e.clientY - this.downAt[1]) > 5) return;
+      const r = renderer.domElement.getBoundingClientRect();
+      const m = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      this.ray.setFromCamera(m, camera);
+      const hits = this.ray.intersectObjects(this.pickables.filter(o => o.visible), false);
+      if (hits.length) this.focus(hits[0].object.userData.name);
+    };
+    renderer.domElement.addEventListener('pointerup', this.onUp);
+
+    this.last = performance.now();
+    this.tick();
+  }
+
+  addLabel(name, color, small) {
+    const d = document.createElement('div');
+    d.className = 'om-lbl';
+    d.textContent = name;
+    d.style.color = color;
+    d.style.fontSize = small ? '9px' : '10px';
+    d.style.background = 'rgba(4,5,10,0.45)';
+    this.labels.current.appendChild(d);
+    this.labelEls[name] = d;
+
+    const ln = document.createElement('div');
+    ln.style.cssText = 'position:absolute;height:1px;transform-origin:0 0;display:none;pointer-events:none;';
+    ln.style.background = 'linear-gradient(90deg, ' + color + '00, ' + color + '99)';
+    this.labels.current.insertBefore(ln, this.labels.current.firstChild);
+    this.leaderEls[name] = ln;
+  }
+
+  // sun size, glow size and zoom floor all follow the current scale mode
+  applyScaleMode() {
+    const sr = this.bodyRadius(RADIUS_KM.Sun);
+    this.sun.scale.setScalar(sr);
+    // real scale: every body is tiny next to the distances, so the glow is a locator, not a size cue
+    this.sunGlow.scale.setScalar(sr * (this.show.trueScale ? 40 : 9));
+    this.controls.minDistance = this.show.trueScale ? 0.0004 : 1.2;
+  }
+
+  select(name) {
+    this.selected = name;
+    this.lockPrev = null;
+    this.hudBoxes = null;
+    this.pushHud();
+    this.forceUpdate();
+  }
+
+  focus(name) {
+    this.select(name);
+    const o = this.objects[name] || (this.moonObjs[name] && this.moonObjs[name].mesh);
+    if (!o || !this.controls) return;
+    const p = new THREE.Vector3(); o.getWorldPosition(p);
+    const rad = this.bodyRadius(RADIUS_KM[name] || 3000);
+    const dist = this.show.trueScale ? Math.max(rad * 8, 0.0006) : Math.max(rad * 6, 6);
+    const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize();
+    this.camera.position.copy(p).addScaledVector(dir, dist);
+    this.controls.target.copy(p);
+    if (this.locked) this.lockPrev = p.clone();
+  }
+
+  rate() { return this.state.playing ? this.dir * Math.pow(10, this.state.speed) : 0; }
+
+  // local offset (parent-relative, scene units) of moon n at a given julian date
+  moonOffset(n, jdVal) {
+    const rec = this.moonObjs[n];
+    const pRad = this.bodyRadius(RADIUS_KM[rec.parent]);
+    let dir;
+    if (n === 'Moon') {
+      const g = moonGeo((jdVal - J2000) / 36525.0);
+      const len = Math.sqrt(g.x * g.x + g.y * g.y + g.z * g.z);
+      dir = new THREE.Vector3(g.x / len, g.z / len, -g.y / len);
+    } else {
+      const L = ((rec.def.L0 + 360 * (jdVal - J2000) / rec.def.P) % 360) * DEG;
+      const inc = 0.03;
+      dir = new THREE.Vector3(Math.cos(L), Math.sin(L) * Math.sin(inc), -Math.sin(L) * Math.cos(inc));
+    }
+    let dd;
+    if (this.show.trueScale) {
+      dd = rec.def.d * UNIT_PER_KM;
+    } else {
+      const list = MOONS[rec.parent];
+      const dmax = Math.max.apply(null, list.map(x => x.d));
+      const budget = pRad + (rec.parent === 'Jupiter' ? 10.6 : rec.parent === 'Saturn' ? 5.0 : 2.9);
+      dd = pRad + (budget - pRad) * Math.pow(rec.def.d / dmax, 0.6);
+    }
+    return dir.multiplyScalar(dd);
+  }
+
+  resetTrails() {
+    Object.keys(this.moonObjs || {}).forEach(n => { this.moonObjs[n].lastOrbitJD = undefined; });
+  }
+
+  rateLabel(r) {
+    if (!this.state.playing) return 'paused';
+    const s = this.dir < 0 ? '−' : '';
+    if (r < 60) return s + r.toFixed(1) + '× real time';
+    if (r < 3600) return s + (r / 60).toFixed(1) + ' min per second';
+    if (r < 86400) return s + (r / 3600).toFixed(1) + ' hours per second';
+    if (r < 86400 * 60) return s + (r / 86400).toFixed(2) + ' days per second';
+    return s + (r / 31557600).toFixed(2) + ' years per second';
+  }
+
+  tick = () => {
+    if (this.dead) return;
+    this.raf = requestAnimationFrame(this.tick);
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.last) / 1000);
+    this.last = now;
+    this.simMs += dt * this.rate() * 1000;
+    this.update();
+    if (this.locked) {
+      const o = this.objects[this.selected] || (this.moonObjs[this.selected] && this.moonObjs[this.selected].mesh);
+      if (o) {
+        const p = new THREE.Vector3(); o.getWorldPosition(p);
+        if (this.lockPrev) {
+          const delta = new THREE.Vector3().subVectors(p, this.lockPrev);
+          this.camera.position.add(delta);
+          this.controls.target.add(delta);
+        }
+        this.lockPrev = p.clone();
+      }
+    }
+    this.controls.update();
+
+    // depth range follows the zoom: a fixed 1e-4..2e4 frustum has so little precision left that
+    // coplanar geometry (grid rings, orbit lines) flickers across a planet's face
+    const camDist = this.camera.position.distanceTo(this.controls.target);
+    const near = Math.max(0.000002, Math.min(camDist * 0.002, 4));
+    if (!this.lastNear || Math.abs(near / this.lastNear - 1) > 0.12) {
+      this.camera.near = near;
+      this.camera.far = Math.max(12000, camDist * 12);
+      this.camera.updateProjectionMatrix();
+      this.lastNear = near;
+    }
+    this.grid.material.opacity = Math.max(0, Math.min(0.35, (camDist - 26) / 70));
+    this.grid.visible = this.show.orbits && !this.show.trueScale && this.grid.material.opacity > 0.01;
+
+    this.renderer.render(this.scene, this.camera);
+    if (now - this.lastHud > 120) { this.lastHud = now; this.pushHud(); }
+  };
+
+  update() {
+    const jd = jdFromMs(this.simMs);
+    const T = (jd - J2000) / 36525.0;
+    const states = {};
+    this.sun.rotation.y = 2 * Math.PI * (((jd - J2000) * 24 / SUN.rotH) % 1);
+    BODIES.forEach(b => {
+      const s = planetState(b.name, T);
+      states[b.name] = s;
+      const r = Math.sqrt(s.x * s.x + s.y * s.y + s.z * s.z);
+      const k = this.orbitScale(r) / r;
+      const g = this.objects[b.name];
+      g.position.set(s.x * k, s.z * k, -s.y * k);
+      const rad = this.bodyRadius(b.km);
+      g.traverse(o => { if (o.userData.rk) o.scale.setScalar(rad * o.userData.rk); });
+      // spin is driven by simulated time, so scrubbing the date turns every planet with it.
+      // The mesh sits inside its obliquity tilt, whose local X axis is the vernal equinox — so
+      // rotating Earth by GMST puts the prime meridian at the right right-ascension.
+      const spin = b.name === 'Earth' ? gmst(jd) * DEG : 2 * Math.PI * ((((jd - J2000) * 24 / b.rotH) % 1) + 1);
+      g.userData.core.rotation.y = spin;
+
+      // orbit path
+      const line = this.orbitLines[b.name];
+      line.visible = this.show.orbits;
+      if (this.show.orbits && (line.userData.T === undefined || Math.abs(line.userData.T - T) > 0.02 || line.userData.scaleMode !== this.show.trueScale)) {
+        line.userData.T = T; line.userData.scaleMode = this.show.trueScale;
+        const pos = line.geometry.attributes.position.array;
+        const cw = Math.cos(s.w), sw = Math.sin(s.w), cn = Math.cos(s.node), sn = Math.sin(s.node), ci = Math.cos(s.I), si = Math.sin(s.I);
+        const step = 2 * Math.PI / ORBIT_SEGS;
+        for (let i = 0; i <= ORBIT_SEGS; i++) {
+          const E = i * step;
+          const xp = s.a * (Math.cos(E) - s.e), yp = s.a * Math.sqrt(1 - s.e * s.e) * Math.sin(E);
+          const X = (cw * cn - sw * sn * ci) * xp + (-sw * cn - cw * sn * ci) * yp;
+          const Y = (cw * sn + sw * cn * ci) * xp + (-sw * sn + cw * cn * ci) * yp;
+          const Z = (sw * si) * xp + (cw * si) * yp;
+          const rr = Math.sqrt(X * X + Y * Y + Z * Z), kk = this.orbitScale(rr) / rr;
+          pos[i * 3] = X * kk; pos[i * 3 + 1] = Z * kk; pos[i * 3 + 2] = -Y * kk;
+        }
+        line.geometry.attributes.position.needsUpdate = true;
+        line.geometry.computeBoundingSphere();
+      }
+    });
+    this.states = states;
+    this.T = T; this.jd = jd;
+
+    // moons
+    Object.keys(this.moonObjs).forEach(n => {
+      const rec = this.moonObjs[n];
+      const mesh = rec.mesh;
+      mesh.visible = this.show.moons;
+      rec.orbitLine.visible = this.show.orbits && this.show.moons;
+      if (!this.show.moons) return;
+      mesh.position.copy(this.moonOffset(n, jd));
+      mesh.scale.setScalar(this.show.trueScale ? this.bodyRadius(rec.def.km) : Math.max(0.16, this.bodyRadius(rec.def.km) * 0.8));
+      // every one of these moons is tidally locked, so it keeps one face to its planet
+      mesh.rotation.y = Math.atan2(mesh.position.x, mesh.position.z) + Math.PI / 2;
+
+      if (rec.orbitLine.visible) {
+        const per = rec.def.P;
+        if (rec.lastOrbitJD === undefined || Math.abs(jd - rec.lastOrbitJD) > Math.max(per / 16, 0.02) || rec.lastScaleMode !== this.show.trueScale) {
+          rec.lastOrbitJD = jd; rec.lastScaleMode = this.show.trueScale;
+          const pos = rec.orbitLine.geometry.attributes.position.array;
+          for (let i = 0; i < MOON_SEGS; i++) {
+            const off = this.moonOffset(n, jd + per * i / MOON_SEGS);
+            pos[i * 3] = off.x; pos[i * 3 + 1] = off.y; pos[i * 3 + 2] = off.z;
+          }
+          rec.orbitLine.geometry.attributes.position.needsUpdate = true;
+          rec.orbitLine.geometry.computeBoundingSphere();
+        }
+      }
+    });
+
+    this.sunGlow.position.copy(this.sun.position);
+
+    // eclipse geometry: real angular sizes only mean something when sizes and distances are true,
+    // so the shading is armed in Real scale and left off in the compressed view
+    const earthPos = new THREE.Vector3(); this.objects.Earth.getWorldPosition(earthPos);
+    const moonPos = new THREE.Vector3(); this.moonObjs.Moon.mesh.getWorldPosition(moonPos);
+    const armed = this.show.trueScale && this.show.moons;
+    const sunR = this.bodyRadius(RADIUS_KM.Sun);
+    this.eU.uOcc.value.copy(moonPos);
+    this.eU.uOccR.value = armed ? this.bodyRadius(RADIUS_KM.Moon) : 0;
+    this.eU.uSunR.value = sunR;
+    this.eU.uSelf.value.copy(earthPos);
+    this.mU.uOcc.value.copy(earthPos);
+    this.mU.uOccR.value = armed ? this.bodyRadius(RADIUS_KM.Earth) : 0;
+    this.mU.uSunR.value = sunR;
+    this.mU.uSelf.value.copy(moonPos);
+
+    this.placeLabels();
+  }
+
+  placeLabels() {
+    const lc = this.labels.current;
+    const W = lc.clientWidth, H = lc.clientHeight;
+    if (!this.hudBoxes || this.hudBoxW !== W || this.hudBoxH !== H) {
+      const cr = lc.getBoundingClientRect();
+      this.hudBoxes = Array.prototype.map.call(lc.parentElement.querySelectorAll('[data-hud]'), p => {
+        const r = p.getBoundingClientRect();
+        return { left: r.left - cr.left - 4, right: r.right - cr.left + 4, top: r.top - cr.top - 4, bottom: r.bottom - cr.top + 4 };
+      });
+      this.hudBoxW = W; this.hudBoxH = H;
+    }
+    const blockers = this.hudBoxes.slice();
+    const v = new THREE.Vector3();
+    Object.keys(this.labelEls).forEach(n => {
+      const el = this.labelEls[n];
+      const o = this.objects[n] || (this.moonObjs[n] && this.moonObjs[n].mesh);
+      const hideAll = () => { el.style.display = 'none'; this.leaderEls[n].style.display = 'none'; };
+      if (!this.show.labels || !o || (this.moonObjs[n] && !this.show.moons)) { hideAll(); return; }
+      o.getWorldPosition(v);
+      const camDist = v.distanceTo(this.camera.position);
+      v.project(this.camera);
+      if (v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1) { hideAll(); return; }
+      if (this.moonObjs[n] && camDist > 260) { hideAll(); return; }
+      const rad = this.bodyRadius(RADIUS_KM[n] || 2000);
+      // sit the label just clear of the body's on-screen disk, so a close-up globe is never
+      // captioned across its own surface
+      const pxRad = (rad / Math.max(camDist, 1e-9)) * (H * 0.5) / Math.tan(this.camera.fov * DEG * 0.5);
+      const ly = (-v.y * 0.5 + 0.5) * H - Math.min(H * 0.4, pxRad + 12);
+      el.style.display = 'block';
+      const halfW = el.offsetWidth / 2 + 4;
+      const halfH = 9;
+      const clampX = x => Math.max(halfW, Math.min(W - halfW, x));
+      const clampY = y => Math.max(halfH + 2, Math.min(H - halfH - 2, y));
+      const anchorX = clampX((v.x * 0.5 + 0.5) * W);
+      const clear = (x, y) => {
+        for (let i = 0; i < blockers.length; i++) {
+          const b = blockers[i];
+          if (x + halfW > b.left && x - halfW < b.right && y + halfH > b.top && y - halfH < b.bottom) return false;
+        }
+        return true;
+      };
+      // try the natural spot, then progressively larger offsets around the body — against the HUD
+      // panels and against labels already placed this frame
+      const bodyY = (-v.y * 0.5 + 0.5) * H;
+      const CAND = [[0, 0], [0, 26], [0, -26], [0, 52], [0, -52], [1, 0], [-1, 0], [1, 34], [-1, 34], [1, -34], [-1, -34]];
+      let lx = anchorX, ply = clampY(ly), placed = false;
+      for (let i = 0; i < CAND.length; i++) {
+        const cx = clampX(anchorX + CAND[i][0] * (halfW + 46));
+        const cy = clampY((CAND[i][0] !== 0 ? bodyY : ly) + CAND[i][1]);
+        if (clear(cx, cy)) { lx = cx; ply = cy; placed = true; break; }
+      }
+      // nowhere clear of the panels or of another label: drop it rather than print it over the HUD
+      if (!placed) { hideAll(); return; }
+      el.style.left = lx + 'px';
+      el.style.top = ply + 'px';
+      el.style.opacity = n === this.selected ? 1 : 0.72;
+      blockers.push({ left: lx - halfW, right: lx + halfW, top: ply - halfH, bottom: ply + halfH });
+
+      // leader line back to the body when the label was pushed away
+      const dx = lx - anchorX, dy = ply - ly;
+      const lead = this.leaderEls[n];
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 40) {
+        lead.style.display = 'block';
+        lead.style.left = anchorX + 'px';
+        lead.style.top = ly + 'px';
+        lead.style.width = len + 'px';
+        lead.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)';
+      } else lead.style.display = 'none';
+    });
+  }
+
+  dayLabel(h, retro) {
+    const s = h < 48 ? h.toFixed(2) + ' h' : (h / 24).toFixed(2) + ' d';
+    return s + (retro ? ' retrograde' : '');
+  }
+
+  pushHud() {
+    const d = new Date(this.simMs);
+    const pad = n => String(n).padStart(2, '0');
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const tzMin = -d.getTimezoneOffset();
+    const tzLabel = 'UTC' + (tzMin >= 0 ? '+' : '-') + Math.floor(Math.abs(tzMin) / 60) + (Math.abs(tzMin) % 60 ? ':' + pad(Math.abs(tzMin) % 60) : '');
+    const s = this.selected;
+    let selDist = '—', selLon = '—', selLat = '—', selGeo = '—';
+    if (this.states && s) {
+      const E = this.states.Earth;
+      let p = null;
+      if (s === 'Sun') p = { x: 0, y: 0, z: 0 };
+      else if (this.states[s]) p = this.states[s];
+      else if (this.moonObjs[s]) {
+        const rec = this.moonObjs[s];
+        const par = this.states[rec.parent];
+        if (par) {
+          if (s === 'Moon') {
+            const g = moonGeo(this.T);
+            p = { x: par.x + g.x / AU_KM, y: par.y + g.y / AU_KM, z: par.z + g.z / AU_KM };
+          } else {
+            const L = ((rec.def.L0 + 360 * (this.jd - J2000) / rec.def.P) % 360) * DEG;
+            const dd = rec.def.d / AU_KM;
+            p = { x: par.x + dd * Math.cos(L), y: par.y + dd * Math.sin(L), z: par.z };
+          }
+        }
+      }
+      if (p) {
+        const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+        if (s === 'Sun') selDist = '0 AU';
+        else {
+          selDist = r.toFixed(4) + ' AU  (' + (r * 149.598).toFixed(2) + ' Gm)';
+          selLon = norm360(Math.atan2(p.y, p.x) / DEG).toFixed(3) + '°';
+          selLat = (Math.asin(p.z / r) / DEG).toFixed(3) + '°';
+        }
+        const gx = p.x - E.x, gy = p.y - E.y, gz = p.z - E.z;
+        const g = Math.sqrt(gx * gx + gy * gy + gz * gz);
+        selGeo = s === 'Earth' ? '0 AU' : g.toFixed(4) + ' AU  (' + (g * 499.005).toFixed(1) + ' s light)';
+      }
+    }
+    const bd = BODIES.find(b => b.name === s);
+    const moon = s && this.moonObjs ? this.moonObjs[s] : null;
+    const meta = s === 'Sun' ? SUN : bd || (moon && moon.def);
+    this.setState({
+      timeStr: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()),
+      dateStr: pad(d.getDate()) + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(),
+      tzLabel: tzLabel,
+      jdStr: jdFromMs(this.simMs).toFixed(5),
+      dateInput: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+      timeInput: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+      rateStr: this.rateLabel(Math.pow(10, this.state.speed)),
+      selName: s, selDist: selDist, selLon: selLon, selLat: selLat, selGeo: selGeo,
+      selType: meta ? meta.type || '' : '', selDesc: meta ? meta.desc || '' : '',
+      selRadius: s ? RADIUS_KM[s].toLocaleString('en-US') + ' km' : '—',
+      selPeriod: bd ? bd.period : moon ? moon.def.P.toFixed(4) + ' d' : '—',
+      selDay: s === 'Sun' ? this.dayLabel(SUN.rotH) : bd ? this.dayLabel(bd.rotH, bd.retro) : moon ? 'synchronous' : '—'
+    });
+  }
+
+  toggleStyle(on) {
+    return 'border: 1px solid ' + (on ? 'oklch(0.84 0.13 78 / 0.5)' : 'rgba(255,255,255,0.1)') +
+      '; background: ' + (on ? 'oklch(0.84 0.13 78 / 0.12)' : 'rgba(255,255,255,0.03)') +
+      '; color: ' + (on ? 'oklch(0.9 0.1 78)' : 'rgba(232,234,240,0.7)') +
+      "; font: 400 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 6px; cursor: pointer;";
+  }
+  toggleHover(on) { return on ? 'background: oklch(0.84 0.13 78 / 0.22);' : 'border-color: rgba(255,255,255,0.35);'; }
+
+  setScale(on) {
+    if (this.show.trueScale === on) return;
+    this.show.trueScale = on;
+    this.resetTrails();
+    this.applyScaleMode();
+    this.lockPrev = null;
+  }
+
+  renderVals() {
+    const st = this.state;
+    const sh = this.show;
+    return {
+      mount: this.mount, labels: this.labels, focusList: this.focusList,
+      timeStr: st.timeStr || '--:--:--',
+      dateStr: st.dateStr || 'loading ephemeris',
+      jdStr: st.jdStr || '—',
+      rateStr: st.rateStr || '',
+      dateInput: st.dateInput || '',
+      timeInput: st.timeInput || '',
+      speed: st.speed,
+      playLabel: st.playing ? 'Pause' : 'Play',
+      guideOpen: st.guideOpen,
+      guideLabel: st.guideOpen ? 'Close guide' : 'Guide & sources',
+      guideBtnStyle: 'margin-top: 6px; border: 1px solid ' + (st.guideOpen ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)') +
+        "; background: rgba(255,255,255,0.03); color: rgba(232,234,240,0.6); font: 400 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0.16em; text-transform: uppercase; padding: 7px 9px; cursor: pointer;",
+      selName: st.selName, selType: st.selType, selDesc: st.selDesc, selDist: st.selDist, selLon: st.selLon,
+      selLat: st.selLat, selGeo: st.selGeo, selRadius: st.selRadius, selPeriod: st.selPeriod, selDay: st.selDay,
+      tzLabel: st.tzLabel, hasSelection: !!this.selected,
+      orbitsBtnStyle: this.toggleStyle(sh.orbits), orbitsBtnHoverStyle: this.toggleHover(sh.orbits),
+      labelsBtnStyle: this.toggleStyle(sh.labels), labelsBtnHoverStyle: this.toggleHover(sh.labels),
+      moonsBtnStyle: this.toggleStyle(sh.moons), moonsBtnHoverStyle: this.toggleHover(sh.moons),
+      scaleBtnStyle: this.toggleStyle(sh.trueScale), scaleBtnHoverStyle: this.toggleHover(sh.trueScale),
+      lockBtnStyle: this.toggleStyle(this.locked), lockBtnHoverStyle: this.toggleHover(this.locked),
+      lockLabel: this.locked ? 'Locked' : 'Lock',
+      dirBtnStyle: this.toggleStyle(this.dir < 0), dirBtnHoverStyle: this.toggleHover(this.dir < 0),
+      dirLabel: this.dir < 0 ? '◂ Reverse' : 'Reverse ▸',
+      togglePlay: () => this.setState(s => ({ playing: !s.playing })),
+      toggleDir: () => { this.dir = -this.dir; this.forceUpdate(); },
+      toggleGuide: () => { this.hudBoxes = null; this.setState(s => ({ guideOpen: !s.guideOpen })); },
+      onSpeed: e => this.setState({ speed: parseFloat(e.target.value) }),
+      nudgeUp: () => this.setState(s => ({ speed: Math.min(8.2, +(s.speed + 0.1).toFixed(2)) })),
+      nudgeDown: () => this.setState(s => ({ speed: Math.max(0, +(s.speed - 0.1).toFixed(2)) })),
+      goNow: () => { this.simMs = Date.now(); this.resetTrails(); },
+      stepBack: () => { this.simMs -= 86400000; this.resetTrails(); },
+      stepFwd: () => { this.simMs += 86400000; this.resetTrails(); },
+      onDateChange: e => {
+        const p = (e.target.value || '').split('-').map(Number);
+        // the element set is only valid 1800–2050; ignore half-typed years outside it
+        if (p.length !== 3 || !(p[0] >= 1800 && p[0] <= 2050)) return;
+        const d = new Date(this.simMs);
+        this.simMs = new Date(p[0], p[1] - 1, p[2], d.getHours(), d.getMinutes(), d.getSeconds()).getTime();
+        this.resetTrails();
+      },
+      onTimeChange: e => {
+        const p = (e.target.value || '').split(':').map(Number);
+        if (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) return;
+        const d = new Date(this.simMs);
+        d.setHours(p[0], p[1], p[2] || 0, 0);
+        this.simMs = d.getTime();
+        this.resetTrails();
+      },
+      toggleLock: () => {
+        this.locked = !this.locked;
+        if (this.locked && this.selected) this.focus(this.selected);
+        else { this.lockPrev = null; this.forceUpdate(); }
+      },
+      onFocusClick: e => {
+        const b = e.target.closest('button[data-body]');
+        if (!b) return;
+        const name = b.getAttribute('data-body');
+        if (name === this.selected) this.select(null);
+        else this.focus(name);
+      },
+      toggleOrbits: () => { this.show.orbits = !this.show.orbits; this.forceUpdate(); },
+      toggleLabels: () => { this.show.labels = !this.show.labels; this.forceUpdate(); },
+      toggleMoons: () => { this.show.moons = !this.show.moons; this.forceUpdate(); },
+      toggleScale: () => {
+        this.setScale(!this.show.trueScale);
+        this.camera.position.set(0, this.show.trueScale ? 600 : 170, this.show.trueScale ? 1100 : 300);
+        this.controls.target.set(0, 0, 0);
+        this.forceUpdate();
+      },
+      jumpToEclipse: () => {
+        this.setScale(true);
+        this.setState({ playing: false });
+        this.simMs = Date.UTC(2027, 7, 2, 10, 7, 0);
+        this.resetTrails();
+        this.update();
+        // Frame the umbra itself: intersect the Sun→Moon shadow axis with Earth's surface. The
+        // 2 Aug 2027 totality (6m23s over Egypt) runs near the centre of the disk with the Sun
+        // high, so the shadow lands in full daylight rather than grazing a limb.
+        const earthPos = new THREE.Vector3(); this.objects.Earth.getWorldPosition(earthPos);
+        const moonPos = new THREE.Vector3(); this.moonObjs.Moon.mesh.getWorldPosition(moonPos);
+        const earthRad = this.bodyRadius(RADIUS_KM.Earth);
+        const axis = moonPos.clone().normalize();
+        const b = axis.dot(earthPos), disc = b * b - (earthPos.lengthSq() - earthRad * earthRad);
+        const hit = disc >= 0
+          ? axis.clone().multiplyScalar(b - Math.sqrt(disc))
+          : earthPos.clone().addScaledVector(axis.clone().multiplyScalar(b).sub(earthPos).normalize(), earthRad);
+        const nrm = hit.clone().sub(earthPos).normalize();
+        this.camera.position.copy(hit).addScaledVector(nrm, earthRad * 2.3);
+        this.controls.target.copy(hit);
+        // Earth crosses roughly one of its own radii per hour at true scale, so the view only holds
+        // still — and the shadow only reads as moving — with the camera locked to it
+        this.locked = true;
+        this.lockPrev = earthPos.clone();
+        this.select('Earth');
+      }
+    };
+  }
+}
+</script>
+
+
+<div id="__claude_design_branding"><style>#__claude_design_branding{position:fixed;right:16px;bottom:16px;z-index:2147483646;display:flex;align-items:center;gap:7px;height:30px;padding:0 5px 0 10px;border-radius:999px;font-family:"Anthropic Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:12.5px;font-weight:400;line-height:1;letter-spacing:normal;text-transform:none;color:#141413;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 0 0 .5px rgba(31,30,29,.14),0 2px 10px rgba(0,0,0,.09)}
+#__claude_design_branding *{box-sizing:border-box;margin:0}
+#__claude_design_branding a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+#__claude_design_branding a:hover span{text-decoration:underline}
+#__claude_design_branding svg{flex:none}
+#__claude_design_branding a svg{color:#D97757}
+#__claude_design_branding button{width:20px;height:20px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:currentColor;opacity:.55;border:0;background:none;cursor:pointer;flex:none;font:inherit;transition:opacity .14s}
+#__claude_design_branding button:hover{opacity:1;background:rgba(127,127,127,.22)}
+@media print{#__claude_design_branding{display:none}}</style><a href="https://claude.com/product/design" target="_blank" rel="noopener noreferrer"><svg width="14" height="14" viewBox="0 0 20 21" fill="none" aria-hidden="true"><path fill="currentColor" d="M9.99902 0C15.5258 0.000170936 19.999 4.50643 19.999 10.0547C19.999 11.7656 19.5863 12.9976 18.7861 13.8203C17.9924 14.6362 16.9465 14.9138 15.9854 15.0078C15.05 15.0993 14.0097 15.0262 13.2549 15.0186C12.8524 15.0145 12.5177 15.0267 12.2441 15.0703C11.9682 15.1144 11.8143 15.1813 11.7305 15.2432C11.4745 15.4322 11.3353 15.7121 11.2656 16.1602C11.2303 16.3875 11.2168 16.6362 11.209 16.9131C11.2017 17.1715 11.1986 17.4893 11.1807 17.7705C11.1469 18.2975 11.0495 19.0865 10.4199 19.5908C9.7846 20.0996 8.88652 20.1057 7.85449 19.877C7.36399 19.7682 6.88652 19.6232 6.42578 19.4453C2.66989 17.9949 0.000187748 14.3414 0 10.0547C0 4.50643 4.47223 0.000171048 9.99902 0ZM9.99902 1.60547C5.36781 1.60564 1.60547 5.38391 1.60547 10.0547C1.60566 13.6582 3.84823 16.7296 7.00391 17.9482C7.39027 18.0974 7.79085 18.2184 8.20215 18.3096C9.1375 18.5169 9.384 18.3633 9.41602 18.3379C9.4524 18.3087 9.54558 18.1915 9.5791 17.668C9.5947 17.4239 9.59473 17.1786 9.60352 16.8672C9.61179 16.5742 9.62831 16.2435 9.67969 15.9131C9.78359 15.2455 10.0474 14.4906 10.7764 13.9521C11.1479 13.6778 11.5842 13.5493 11.9912 13.4844C12.4007 13.4191 12.8434 13.4088 13.2705 13.4131C14.1753 13.4222 15.0071 13.4905 15.8291 13.4102C16.6257 13.3322 17.2249 13.1235 17.6357 12.7012C18.0401 12.2855 18.3935 11.5261 18.3936 10.0547C18.3936 5.38391 14.6302 1.60564 9.99902 1.60547ZM5.11621 9.86719C5.86386 9.91468 6.45486 10.5348 6.45508 11.2939C6.45506 12.0838 5.81519 12.7245 5.02539 12.7246C4.28481 12.7246 3.67573 12.1617 3.60254 11.4404L3.59473 11.2939L3.60156 11.1533C3.66942 10.4596 4.23282 9.91186 4.93359 9.86719H5.11621ZM14.9814 7.19141C15.729 7.23889 16.3199 7.85919 16.3203 8.61816C16.3203 9.40801 15.6804 10.0487 14.8906 10.0488C14.1501 10.0487 13.5409 9.48586 13.4678 8.76465L13.46 8.61816L13.4668 8.47754C13.5348 7.78403 14.0983 7.23618 14.7988 7.19141H14.9814ZM6.4541 4.93457C7.20161 4.9822 7.79275 5.60231 7.79297 6.36133C7.79288 7.151 7.15291 7.7917 6.36328 7.79199C5.62274 7.79199 5.01369 7.22903 4.94043 6.50781L4.93262 6.36133L4.93945 6.2207C5.00731 5.52698 5.5707 4.97922 6.27148 4.93457H6.4541ZM11.3867 3.59668C12.1343 3.64419 12.7253 4.26436 12.7256 5.02344C12.7256 5.81326 12.0857 6.45393 11.2959 6.4541C10.5553 6.4541 9.94622 5.89123 9.87305 5.16992L9.86523 5.02344L9.87207 4.88281C9.93996 4.18912 10.5033 3.64133 11.2041 3.59668H11.3867Z"></path></svg><span>Made with Claude Design</span></a><button type="button" aria-label="Dismiss" onclick="this.parentElement.remove()"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></div></body></html>

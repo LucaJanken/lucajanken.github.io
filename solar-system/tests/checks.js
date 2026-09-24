@@ -2,6 +2,7 @@
 // Every check compares the model with an independent reference and fails above a stated tolerance.
 
 import { A, snapshot, eqjToEcl } from '../js/astro/ephemeris.js';
+import { deltaT } from '../js/astro/deltat.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = a => Math.hypot(a[0], a[1], a[2]);
@@ -27,9 +28,11 @@ export function horizonsChecks(fixture) {
       const model = center === 'Sun' ? s.bodies[name].pos : s.bodies[name].rel.pos;
       const errKm = len(sub(model, ref));
       let arc = 0;
-      if (center === 'Sun' && name !== 'Earth' && earthRef.has(r[0])) {
-        // error as seen from Earth: compare the geocentric vectors of model and reference
-        const eRef = eqjToEcl(earthRef.get(r[0]));
+      if (center === 'Sun' && name !== 'Earth') {
+        // error as seen from Earth: compare the geocentric vectors of model and reference. Some
+        // bodies were sampled on other days than Earth; the model's Earth (< 3,000 km off) then
+        // stands in, which changes the angle by < 0.1″ for Neptune and Pluto.
+        const eRef = earthRef.has(r[0]) ? eqjToEcl(earthRef.get(r[0])) : s.bodies.Earth.pos;
         const gModel = sub(model, s.bodies.Earth.pos), gRef = sub(ref, eRef);
         arc = len(sub(gModel, gRef)) / len(gRef) * ARCSEC;
       }
@@ -86,6 +89,14 @@ const ECLIPSES = [
 ];
 
 export function eclipseChecks() {
+  // The canon was computed with the Espenak & Meeus ΔT polynomials; use them here so that this
+  // checks the geometry. (The page itself uses measured ΔT, which moves e.g. the 2024 track by
+  // ~2 km and ~4 s: that is a better Earth rotation, not a geometry error.)
+  A.SetDeltaTFunction(A.DeltaT_EspenakMeeus);
+  try { return eclipseChecksWithDeltaT(); } finally { A.SetDeltaTFunction(deltaT); }
+}
+
+function eclipseChecksWithDeltaT() {
   return ECLIPSES.map(([iso, lat, lon, gamma]) => {
     // greatest eclipse = shadow axis closest to Earth's centre; search ±10 min around the canon time
     const t0 = Date.parse(iso);
@@ -149,5 +160,44 @@ function eclToEqj(v) {
 }
 
 export function runAll(fixture) {
-  return [...geometryChecks(), ...eclipseChecks(), ...horizonsChecks(fixture)];
+  return [...deltaTChecks(), ...rotationChecks(), ...geometryChecks(), ...eclipseChecks(), ...horizonsChecks(fixture)];
+}
+
+// ΔT against the IERS-measured values it should reproduce, and continuity at the table edges
+export function deltaTChecks() {
+  const at = y => deltaT((y - 2000) * 365.25);
+  const ref = [[1900, -2.70], [1950.5, 29.4], [2000, 63.83], [2020, 69.36], [2025, 69.04]];
+  const worst = Math.max(...ref.map(([y, v]) => Math.abs(at(y) - v)));
+  const jumps = [1657, 2033.75].map(y => Math.abs(at(y + 1e-6) - at(y - 1e-6)));
+  return [{
+    name: 'ΔT reproduces IERS/USNO values and is continuous',
+    pass: worst < 0.3 && Math.max(...jumps) < 0.01,
+    detail: `largest difference ${worst.toFixed(2)} s at 1900–2025; ${ref.map(([y]) => `${y}: ${at(y).toFixed(2)} s`).join(', ')}`,
+  }];
+}
+
+// Synchronous moons: the IAU prime meridian must face the planet up to (a) a constant offset, since
+// the IAU fixes longitude 0 by a surface feature rather than the exact sub-planet point, and (b) the
+// optical libration of an eccentric orbit, ±2e radians (Phobos adds a forced libration of ~1.1°).
+// A sign or frame error would show up as tens of degrees.
+export function rotationChecks() {
+  const ecc = { Io: 0.0041, Europa: 0.0094, Ganymede: 0.0013, Callisto: 0.0074, Titan: 0.0288, Phobos: 0.0151, Deimos: 0.0003 };
+  // Deimos: its IAU W carries 2.7° long-period terms, which the orbit fit follows to ~0.6°
+  const extra = { Phobos: 1.3, Ganymede: 0.2, Deimos: 0.7 };
+  const st = Object.fromEntries(Object.keys(ecc).map(n => [n, { sum: 0, min: 1e9, max: -1e9, n: 0 }]));
+  for (let k = 0; k < 600; k++) {
+    const s = snapshot(Date.UTC(1850, 0, 1) + k * 0.3047 * 365.25 * 86400000);
+    for (const n in ecc) {
+      const { pole, prime } = s.axes[n], toP = s.bodies[n].rel.pos.map(x => -x);
+      const inPlane = sub(toP, pole.map(x => x * dot(toP, pole)));
+      const a = Math.atan2(dot(cross(prime, inPlane), pole), dot(prime, inPlane)) * DEG, o = st[n];
+      o.sum += a; o.n++; o.min = Math.min(o.min, a); o.max = Math.max(o.max, a);
+    }
+  }
+  const res = Object.keys(ecc).map(n => {
+    const o = st[n], mean = o.sum / o.n, half = (o.max - o.min) / 2, lim = 2 * ecc[n] * DEG * 1.25 + (extra[n] || 0.1);
+    return { n, mean, half, lim, ok: Math.abs(mean) < 3 && half < lim };
+  });
+  return [{ name: 'Moons’ IAU prime meridians face their planet (fixed offset + libration)', pass: res.every(r => r.ok),
+    detail: res.map(r => `${r.n} ${r.mean.toFixed(1)}° ± ${r.half.toFixed(2)}° (≤ ${r.lim.toFixed(2)}°)`).join(', ') }];
 }

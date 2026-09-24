@@ -1,11 +1,10 @@
 // The information panel for the selected body.
-import { A, AU_KM, oscElements, gmOf } from '../astro/ephemeris.js';
+import { A, AU_KM, oscElements, orbitState } from '../astro/ephemeris.js';
 import { BY_NAME, meanRadius } from '../data/bodies.js';
 import { fmtDist, fmtLight, fmtMass, fmtHours, fmtAngle, fmtRA, fmtDec, fmtDuration } from './format.js';
 
 const EARTH = BY_NAME.Earth;
 const ENGINE_BODIES = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto']);
-const GM_SUN = 1.32712440041e11;
 const len = v => Math.hypot(v[0], v[1], v[2]);
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 
@@ -94,9 +93,9 @@ export class InfoPanel {
       const p = b.pos;
       const lon = (Math.atan2(p[1], p[0]) * 180 / Math.PI + 360) % 360, lat = Math.asin(p[2] / len(p)) * 180 / Math.PI;
       more.push(['Heliocentric ecl. lon/lat', lon.toFixed(3) + '° / ' + lat.toFixed(3) + '°']);
-      const rel = d.parent === 'Sun' ? b : b.rel;
-      const mu = d.parent === 'Sun' ? GM_SUN + gmOf(name) : gmOf(d.parent) + gmOf(name);
-      const el = oscElements(rel.pos, rel.vel, mu);
+      const os = orbitState(snap, name);
+      const el = oscElements(os.pos, os.vel, os.mu);
+      more.push(['Orbit elements about', os.about]);
       const aStr = d.parent === 'Sun' ? (el.a / AU_KM).toFixed(6) + ' AU' : Math.round(el.a).toLocaleString('en-US') + ' km';
       more.push(['Osculating a', aStr], ['e', el.e.toFixed(6)], ['i (to ecliptic)', fmtAngle(el.i, 4)],
         ['Ω (ascending node)', fmtAngle((el.node + 2 * Math.PI) % (2 * Math.PI), 3)], ['ω (argument of periapsis)', fmtAngle((el.argp + 2 * Math.PI) % (2 * Math.PI), 3)],

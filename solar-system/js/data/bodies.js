@@ -5,8 +5,10 @@
 //   masses       NASA GSFC planetary & satellite fact sheets (2024 revision)
 //   periods      NASA GSFC fact sheets; Saturn's rotation from ring seismology (Mankovich et al. 2019)
 //   obliquities  NASA GSFC fact sheets (angle between spin axis and orbit normal)
+//   aKm          moons' mean orbital radius (NASA GSFC); used only to lay out the overview
 //
 // Orbital motion and spin orientation are NOT stored here: they come from js/astro/ephemeris.js.
+// `photometry: 'lunar'` marks dark airless regolith surfaces (lunar–Lambert law, see shaders.js).
 // `shape` is [equatorial, equatorial, polar] radii, or the three semi-axes for the irregular moons
 // (longest axis pointing at the parent planet).
 
@@ -15,11 +17,11 @@ export const BODIES = [
     name: 'Sun', type: 'Star · G2V', parent: null, color: '#ffd68a',
     shape: [695700, 695700, 695700], massKg: 1.9885e30,
     rotationH: 609.12, rotationNote: 'at the equator; near the poles it takes ~35 days',
-    tex: { map: 'sun.jpg' },
+    representative: 'sunspots and faculae are not shown',
     desc: 'An ordinary middle-aged star, 4.6 billion years old, holding 99.86% of the Solar System’s mass. Its light takes 8 min 20 s to reach Earth.',
   },
   {
-    name: 'Mercury', type: 'Terrestrial planet', parent: 'Sun', color: '#9a8f86',
+    name: 'Mercury', type: 'Terrestrial planet', parent: 'Sun', color: '#9a8f86', photometry: 'lunar',
     shape: [2440.53, 2440.53, 2438.26], massKg: 3.3011e23,
     periodD: 87.969, rotationH: 1407.6, solarDayH: 4222.6, obliquity: 0.034,
     tex: { map: 'mercury.jpg' },
@@ -29,7 +31,9 @@ export const BODIES = [
     name: 'Venus', type: 'Terrestrial planet', parent: 'Sun', color: '#d9b98a',
     shape: [6051.8, 6051.8, 6051.8], massKg: 4.8675e24,
     periodD: 224.701, rotationH: -5832.6, solarDayH: -2802.0, obliquity: 177.36,
-    tex: { map: 'venus.jpg' },
+    tex: { map: 'venus.jpg' }, representative: 'the cloud pattern is a snapshot, but it circles the planet every 4.2 days, as the real cloud tops do',
+    // the cloud tops super-rotate: ~100 m/s at the equator, 60× faster than the surface turns
+    cloudTopPeriodD: 4.2,
     desc: 'What you see is its permanent cloud deck of sulfuric acid. Beneath it the surface bakes at 464 °C under 92 bar of carbon dioxide. It spins backwards, more slowly than it orbits.',
   },
   {
@@ -37,13 +41,14 @@ export const BODIES = [
     shape: [6378.137, 6378.137, 6356.752], massKg: 5.9722e24,
     periodD: 365.256, rotationH: 23.9345, solarDayH: 24.0, obliquity: 23.44,
     tex: { map: 'earth.jpg', hires: 'earth_4k.jpg', night: 'earth_night.jpg', clouds: 'earth_clouds.jpg', rough: 'earth_rough.jpg' },
+    representative: 'the clouds are a snapshot, not the weather on this date',
     atmosphere: { color: [0.32, 0.55, 1.0], heightKm: 80, refractsUmbra: true },
     desc: 'The only world known to host life. Its seasons come from its 23.4° tilt, not from its distance to the Sun: the northern summer falls near aphelion, when Earth is farthest from the Sun.',
   },
   {
-    name: 'Moon', type: 'Moon of Earth', parent: 'Earth', color: '#bfbcb6',
+    name: 'Moon', type: 'Moon of Earth', parent: 'Earth', color: '#bfbcb6', photometry: 'lunar',
     shape: [1737.4, 1737.4, 1737.4], massKg: 7.346e22,
-    periodD: 27.3217, synodicD: 29.5306, obliquity: 6.68, synchronous: true,
+    periodD: 27.3217, aKm: 384400, synodicD: 29.5306, obliquity: 6.68, synchronous: true,
     tex: { map: 'moon.jpg' },
     desc: 'Tidally locked, it always shows Earth the same face. It probably formed from debris thrown out when a Mars-sized body hit the young Earth, and it drifts 3.8 cm farther away every year.',
   },
@@ -55,15 +60,15 @@ export const BODIES = [
     desc: 'A cold desert with the tallest volcano in the Solar System, Olympus Mons (about 22 km high), and Valles Marineris, a canyon system as long as the United States is wide.',
   },
   {
-    name: 'Phobos', type: 'Moon of Mars', parent: 'Mars', color: '#a39486',
-    shape: [13.0, 11.4, 9.1], massKg: 1.0659e16, periodD: 0.31891, synchronous: true,
-    tex: { map: 'phobos.jpg' }, fitted: true,
+    name: 'Phobos', type: 'Moon of Mars', parent: 'Mars', color: '#a39486', photometry: 'lunar',
+    shape: [13.0, 11.4, 9.1], massKg: 1.0659e16, periodD: 0.31891, aKm: 9376, synchronous: true,
+    tex: { map: 'phobos.jpg' },
     desc: 'Orbits faster than Mars spins, so from the surface it rises in the west. Tides drag it inward by about 1.8 m per century; in 30–50 million years it should break apart into a ring.',
   },
   {
-    name: 'Deimos', type: 'Moon of Mars', parent: 'Mars', color: '#a39486',
-    shape: [7.8, 6.0, 5.1], massKg: 1.4762e15, periodD: 1.26244, synchronous: true,
-    tex: { tint: '#8f857c' }, fitted: true,
+    name: 'Deimos', type: 'Moon of Mars', parent: 'Mars', color: '#a39486', photometry: 'lunar',
+    shape: [7.8, 6.0, 5.1], massKg: 1.4762e15, periodD: 1.26244, aKm: 23463, synchronous: true,
+    tex: { tint: '#8f857c' },
     desc: 'A 12 km lump of dark rock. Whether Mars’s two moons are captured asteroids or debris from a giant impact is still debated; JAXA’s MMX mission is going there to find out.',
   },
   {
@@ -74,26 +79,26 @@ export const BODIES = [
     desc: 'More than twice as massive as all the other planets combined. The Great Red Spot, a storm wider than Earth, has been watched continuously since 1831.',
   },
   {
-    name: 'Io', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#d8c86a',
-    shape: [1821.6, 1821.6, 1821.6], massKg: 8.9319e22, periodD: 1.769138, synchronous: true,
+    name: 'Io', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#d8c86a', photometry: 'lunar',
+    shape: [1821.6, 1821.6, 1821.6], massKg: 8.9319e22, periodD: 1.769138, aKm: 421800, synchronous: true,
     tex: { map: 'io.jpg' },
     desc: 'The most volcanically active world known. Its 1:2:4 orbital resonance with Europa and Ganymede keeps its orbit slightly eccentric, and the flexing tides heat its interior.',
   },
   {
     name: 'Europa', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#cfc4b0',
-    shape: [1560.8, 1560.8, 1560.8], massKg: 4.7998e22, periodD: 3.551181, synchronous: true,
+    shape: [1560.8, 1560.8, 1560.8], massKg: 4.7998e22, periodD: 3.551181, aKm: 671100, synchronous: true,
     tex: { map: 'europa.jpg', tint: '#f4ece0' },
     desc: 'An ice shell over a salty ocean holding roughly twice the water of all Earth’s oceans. It is one of the most promising places to search for life beyond Earth.',
   },
   {
-    name: 'Ganymede', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#a89a86',
-    shape: [2634.1, 2634.1, 2634.1], massKg: 1.4819e23, periodD: 7.154553, synchronous: true,
+    name: 'Ganymede', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#a89a86', photometry: 'lunar',
+    shape: [2634.1, 2634.1, 2634.1], massKg: 1.4819e23, periodD: 7.154553, aKm: 1070400, synchronous: true,
     tex: { map: 'ganymede.jpg' },
     desc: 'The largest moon in the Solar System, wider than the planet Mercury, and the only moon known to generate its own magnetic field.',
   },
   {
-    name: 'Callisto', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#8b7f70',
-    shape: [2410.3, 2410.3, 2410.3], massKg: 1.0759e23, periodD: 16.689017, synchronous: true,
+    name: 'Callisto', type: 'Moon of Jupiter', parent: 'Jupiter', color: '#8b7f70', photometry: 'lunar',
+    shape: [2410.3, 2410.3, 2410.3], massKg: 1.0759e23, periodD: 16.689017, aKm: 1882700, synchronous: true,
     tex: { map: 'callisto.jpg', tint: '#e2d6c6' },
     desc: 'One of the most heavily cratered surfaces known. It has barely changed in about four billion years, a record of the early Solar System’s bombardment.',
   },
@@ -103,13 +108,19 @@ export const BODIES = [
     periodD: 10759.22, rotationH: 10.561, solarDayH: 10.562, obliquity: 26.73,
     rotationNote: 'deep interior, measured by ring seismology in 2019',
     tex: { map: 'saturn.jpg' },
-    rings: { tex: 'saturn_rings.png', innerKm: 70426, outerKm: 141127 },
+    rings: {
+      tex: 'saturn_rings.png', innerKm: 70426, outerKm: 141127,
+      // The map's opacity is artistic; it is rescaled region by region to these mean normal optical
+      // depths (Colwell et al. 2009, "The Structure of Saturn's Rings", in Saturn from
+      // Cassini–Huygens), keeping its fine structure: [from km, to km, mean τ]
+      opticalDepth: [[74490, 91980, 0.1], [91980, 99000, 1.5], [99000, 117580, 3.0], [117580, 122170, 0.12], [122170, 136780, 0.6]],
+    },
     desc: 'Its mean density is lower than water’s. The main rings, almost pure water ice, span 280,000 km but are mostly only tens of metres thick.',
   },
   {
     name: 'Titan', type: 'Moon of Saturn', parent: 'Saturn', color: '#d2a35c',
-    shape: [2574.7, 2574.7, 2574.7], massKg: 1.3452e23, periodD: 15.945421, synchronous: true,
-    tex: { tint: '#d9a85e', haze: true }, fitted: true,
+    shape: [2574.7, 2574.7, 2574.7], massKg: 1.3452e23, periodD: 15.945421, aKm: 1221870, synchronous: true,
+    tex: { tint: '#d9a85e' },
     desc: 'The only moon with a thick atmosphere, 1.5 bar of nitrogen. In visible light its orange haze hides everything, including rivers, lakes and seas of liquid methane. NASA’s Dragonfly rotorcraft is due to arrive in 2034.',
   },
   {

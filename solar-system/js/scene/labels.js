@@ -30,7 +30,8 @@ export class Labels {
       el.type = 'button';
       el.className = 'lbl' + (def.parent && def.parent !== 'Sun' ? ' lbl-moon' : '');
       el.textContent = def.name;
-      el.style.color = def.color;
+      // lightened so that dark body colours (Mars, Neptune) stay readable on the night sky
+      el.style.color = `color-mix(in oklab, ${def.color} 72%, white)`;
       el.addEventListener('click', e => { e.stopPropagation(); onPick(def.name); });
       const ring = document.createElement('div');
       ring.className = 'loc';
@@ -39,6 +40,9 @@ export class Labels {
       this.items[def.name] = { def, el, ring, w: 0, shown: false };
     }
   }
+
+  /** label widths change once the web font arrives */
+  remeasure() { for (const n in this.items) this.items[n].w = 0; }
 
   /**
    * entries: [{ name, pos: Vector3 (world), R: drawn radius, show: bool, prio: number }]

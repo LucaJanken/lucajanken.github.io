@@ -55,8 +55,8 @@
     </section>
   </div>
 
-  <section class="panel info" id="info" data-hud aria-live="polite">
-    <div class="info-head"><div class="info-name" id="infoName">Sun</div><div class="info-type" id="infoType"></div></div>
+  <section class="panel info" id="info" data-hud aria-label="Selected body">
+    <div class="info-head" aria-live="polite"><div class="info-name" id="infoName">Sun</div><div class="info-type" id="infoType"></div></div>
     <p class="info-desc" id="infoDesc"></p>
     <dl class="facts" id="facts"></dl>
     <details id="more"><summary>More data</summary><dl class="facts" id="moreFacts"></dl></details>
@@ -108,7 +108,7 @@
     <p>At <b>true scale</b> the Solar System is almost entirely empty: if the Sun were a grapefruit, Earth would be a grain of sand 13 m away and Neptune 390 m away. The <b>overview</b> shrinks distances and enlarges bodies so everything fits on one screen, and the slider morphs smoothly between the two. Directions are never distorted, so alignments such as eclipses and conjunctions look right at every setting. Rings around tiny dots mark bodies too small to see.</p>
 
     <h3>Shadows and eclipses</h3>
-    <p>Shadows are computed for every point on a surface from the true sizes and distances of the Sun and of the body in the way, including the Sun’s limb darkening and the light’s travel time (the sunlight hitting Earth passed the Moon 1.3 s earlier, which moves a solar eclipse 35 km along its track). They are therefore correct at every scale setting, even when the Moon is drawn closer than it really is. During a lunar eclipse the Moon turns copper-red, because the only light reaching it has been bent and reddened by Earth’s atmosphere. Saturn’s rings cast shadows on the planet and Saturn casts one on its rings. Jupiter’s moons cast theirs on Jupiter and disappear into its shadow.</p>
+    <p>Shadows are computed for every point on a surface from the true sizes and distances of the Sun and of the body in the way, including the Sun’s limb darkening and the light’s travel time (the sunlight hitting Earth passed the Moon 1.3 s earlier, which moves a solar eclipse 35 km along its track). They are therefore correct at every scale setting, even when the Moon is drawn closer than it really is. During a lunar eclipse the Moon turns copper-red, because the only light reaching it has been bent and reddened by Earth’s atmosphere. Saturn’s rings cast shadows on the planet and Saturn casts one on its rings. Jupiter’s moons cast theirs on Jupiter and disappear into its shadow, whose flattened shape is taken into account (it lengthens Io’s eclipses by three minutes).</p>
     <p><b>Boost shadow</b> exaggerates faint partial shadows, which are real but hard to see. It is off by default.</p>
 
     <h3>How accurate is it?</h3>
@@ -121,12 +121,18 @@
       <tr><td>Titan · Phobos · Deimos</td><td>&lt; 900 km · 20 km · 56 km</td></tr>
       <tr><td>Solar eclipses (1919, 1999, 2024, 2027)</td><td>greatest eclipse within 5 km and 5 s of NASA’s canon</td></tr>
     </table>
-    <p>Outside 1800–2050 the planets stay good to about an arcminute for centuries. The moons of Mars and Saturn are extrapolated fits, and Earth’s rotation depends on ΔT, which becomes uncertain far from the present (it is only predictable a few years ahead, so future eclipse tracks can shift east–west by tens of km). The date badge says which regime you are in.</p>
-    <p>Some things are representative rather than exact: cloud patterns on Earth, Jupiter and the other giants are snapshots, and brightness is adjusted so distant worlds stay visible (Neptune receives 1/900 of the sunlight Earth does). Phobos and Deimos are drawn as ellipsoids of their true dimensions.</p>
+    <p>Outside 1800–2050 the planets stay good to about an arcminute for centuries. The moons of Mars and Saturn are extrapolated fits. Earth’s rotation depends on ΔT, the slowly growing lag of Earth’s rotation behind atomic time: the model uses the measured values (telescopic timings since 1657, atomic clocks since 1955) and the official prediction to 2033. Before 1657 ΔT is estimated from historical eclipse records and uncertain by minutes; beyond the 2030s it cannot be predicted well, so eclipse tracks can shift east–west by tens of km. The date badge says which regime you are in.</p>
+    <p>Dates before 15 October 1582 are in the Julian calendar, as in historical records and NASA’s eclipse canon. The Gregorian reform then skipped ten days.</p>
+
+    <h3>What the picture shows</h3>
+    <p>The Sun is the only light, so night sides are black, as a camera exposed for daylight sees them; Earth’s night side shows its city lights. Distant worlds are brightened so they stay visible (Neptune receives 1/900 of the sunlight Earth does). The Sun is drawn as it looks in white light through a filter: a featureless disc, darker and redder toward its edge. The Moon and other dusty airless worlds scatter light back toward the Sun, so a full Moon is evenly bright to its edge instead of shading like a ball. Every moon turns according to the IAU rotation models, including the slight rocking (libration) that keeps the Moon from showing exactly the same face. Each orbit line is the ellipse the body would follow if nothing but its primary pulled on it, fitted to its motion at this instant. Earth’s is the path of the Earth–Moon pair’s centre of mass, which lies 4,700 km from Earth’s centre, inside the Earth: look closely and the line misses Earth’s centre. From Saturn outward the ellipses are drawn around the Solar System’s centre of mass, which the Sun itself circles because of Jupiter’s pull.</p>
+    <p>Some things are representative rather than exact: cloud patterns on Earth, Venus, Jupiter and the other giants are snapshots (Venus’s clouds do circle the planet every four days, as the real ones do), sunspots are not shown, and the fine structure of Saturn’s rings comes from an image whose opacity is scaled to measured values. Phobos and Deimos are drawn as ellipsoids of their true dimensions.</p>
 
     <h3>Sources and credits</h3>
     <ul>
-      <li>Ephemerides: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross, MIT): VSOP87, ELP/MPP02, Lainey L1.2, IAU WGCCRE 2015 rotation; satellite fits to <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a>.</li>
+      <li>Ephemerides: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross, MIT): VSOP87, Brown’s lunar theory (Improved Lunar Ephemeris), Lainey L1.2; satellite fits to <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a>.</li>
+      <li>Rotation: IAU WGCCRE 2015 (Archinal et al. 2018), for the moons via NASA NAIF’s pck00011 kernel. ΔT: US Naval Observatory and IERS.</li>
+      <li>Physics of the picture: lunar–Lambert photometry (McEwen 1991); Saturn’s ring optical depths (Colwell et al. 2009); Danjon’s rule for Earth’s shadow.</li>
       <li>Stars: Yale Bright Star Catalogue, 5th ed. (Hoffleit &amp; Warren, via CDS).</li>
       <li>Planet and Sun maps: <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> (CC BY 4.0), based on NASA data.</li>
       <li>Io, Ganymede, Callisto, Europa, Phobos: USGS Astrogeology / NASA / JPL global mosaics (public domain). Pluto: NASA / JHUAPL / SwRI, New Horizons (public domain).</li>

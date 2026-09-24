@@ -7,17 +7,23 @@
 //
 // Sources
 //   planets, Pluto      astronomy-engine: VSOP87 (truncated) and a numerically integrated Pluto
-//   Moon                astronomy-engine: ELP/MPP02-derived series
+//   Moon                astronomy-engine: Brown's theory (Improved Lunar Ephemeris, 1954), via Montenbruck & Pfleger
 //   Galilean moons      astronomy-engine: Lainey's L1.2 theory
 //   Titan, Phobos, Deimos  fits to JPL Horizons (see satellites.js)
-//   spin axes           IAU WGCCRE 2015 (astronomy-engine RotationAxis); Earth: precession, nutation, ERA
-//   time scales         astronomy-engine: UT → TT via ΔT (Espenak & Meeus polynomial)
+//   spin axes           IAU WGCCRE 2015: astronomy-engine RotationAxis for the Sun, Moon and planets,
+//                       NAIF pck00011 for the other moons (rotation.js); Earth: precession, nutation, GAST
+//   time scales         UT → TT via ΔT: USNO/IERS measurements and predictions 1657–2033 (deltat.js),
+//                       the Espenak & Meeus polynomials outside that span
 //
 // tests/ compares all of these against JPL Horizons (DE440) over 1800–2050.
 
 import * as A from '../../vendor/astronomy.min.js';
 import { BODIES, BY_NAME } from '../data/bodies.js';
 import { satelliteState, FITTED } from './satellites.js';
+import { deltaT } from './deltat.js';
+import { iauRotation } from './rotation.js';
+
+A.SetDeltaTFunction(deltaT);
 
 export const AU_KM = A.KM_PER_AU;
 const AUD_KMS = AU_KM / 86400;
@@ -51,10 +57,10 @@ function stateKm(sv) {
 
 // Body-fixed axes in the ecliptic frame. IAU convention: W is measured along the body's equator
 // from its ascending node on the ICRF equator, which lies at Q = ẑ_ICRF × pole.
-function iauAxes(axis) {
-  const pole = eqjToEcl([axis.north.x, axis.north.y, axis.north.z]);
-  const q = eqjToEcl(unit(cross([0, 0, 1], [axis.north.x, axis.north.y, axis.north.z])));
-  const w = axis.spin * Math.PI / 180;
+function iauAxes(northEqj, spinDeg) {
+  const pole = eqjToEcl(northEqj);
+  const q = eqjToEcl(unit(cross([0, 0, 1], northEqj)));
+  const w = spinDeg * Math.PI / 180;
   const pq = cross(pole, q);
   const prime = add(scale(q, Math.cos(w)), scale(pq, Math.sin(w)));
   return { pole, prime };
@@ -100,9 +106,15 @@ export function snapshot(when) {
   const axes = {};
   for (const b of BODIES) {
     if (b.name === 'Earth') { axes.Earth = earthAxes(time); continue; }
-    if (IAU_AXIS.has(b.name)) { axes[b.name] = iauAxes(A.RotationAxis(A.Body[b.name], time)); continue; }
-    // synchronous rotation: pole along the orbit normal, prime meridian facing the planet
-    // (the IAU definition of longitude 0 for these moons, to within their small librations)
+    if (IAU_AXIS.has(b.name)) {
+      const ax = A.RotationAxis(A.Body[b.name], time);
+      axes[b.name] = iauAxes([ax.north.x, ax.north.y, ax.north.z], ax.spin);
+      continue;
+    }
+    const rot = iauRotation(b.name, time.tt);
+    if (rot) { axes[b.name] = iauAxes(rot.pole, rot.W); continue; }
+    // fallback for a moon without an IAU model: pole along the orbit normal, prime meridian
+    // facing the planet (no libration)
     const { pos, vel } = bodies[b.name].rel;
     const pole = unit(cross(pos, vel));
     const toParent = scale(pos, -1);
@@ -115,8 +127,42 @@ export function snapshot(when) {
 // ---- orbital elements -------------------------------------------------------------------------
 
 const G = 6.6743e-20; // km³ kg⁻¹ s⁻²
+export const GM_SUN = 1.32712440041e11; // km³/s² (DE440)
 
-export function gmOf(name) { return G * BY_NAME[name].massKg; }
+export function gmOf(name) { return name === 'Sun' ? GM_SUN : G * BY_NAME[name].massKg; }
+
+// The two-body orbit that best describes each body's real path over one revolution. Around the
+// Sun: heliocentric through Jupiter, but from Saturn outward the Sun's own wobble around the
+// barycentre (mostly Jupiter's pull, ±1 solar radius) makes heliocentric elements swing by ~1% with
+// Jupiter's 12-year period, while elements about the barycentre, with the mass of the Sun and all
+// planets, stay constant to 0.05%. Earth's orbit is that of the Earth–Moon barycentre: Earth itself
+// weaves ±4,700 km around it every month.
+const BARYCENTRIC = new Set(['Saturn', 'Uranus', 'Neptune', 'Pluto']);
+const GM_SYSTEM = GM_SUN + PLANETS.reduce((s, p) => s + gmOf(p), 0);
+
+/**
+ * Osculating-orbit input for a body: state `pos`, `vel` relative to the attracting centre, its
+ * gravitational parameter `mu`, `offset` (the centre's position in the frame of `bodies[..].rel`
+ * for moons, or heliocentric for planets) and a description of the centre.
+ */
+export function orbitState(snap, name) {
+  const def = BY_NAME[name];
+  if (def.parent !== 'Sun') {
+    const r = snap.bodies[name].rel;
+    return { pos: r.pos, vel: r.vel, mu: gmOf(def.parent) + gmOf(name), offset: [0, 0, 0], about: def.parent };
+  }
+  if (BARYCENTRIC.has(name)) {
+    const sun = snap.sunBary || (snap.sunBary = stateKm(A.BaryState(A.Body.Sun, snap.time)));
+    const b = snap.bodies[name];
+    return { pos: sub(b.pos, scale(sun.pos, -1)), vel: sub(b.vel, scale(sun.vel, -1)), mu: GM_SYSTEM, offset: scale(sun.pos, -1), about: 'the Solar System’s barycentre' };
+  }
+  if (name === 'Earth') {
+    const emb = snap.emb || (snap.emb = stateKm(A.HelioState(A.Body.EMB, snap.time)));
+    return { pos: emb.pos, vel: emb.vel, mu: GM_SUN + gmOf('Earth') + gmOf('Moon'), offset: [0, 0, 0], about: 'the Sun (Earth–Moon barycentre)' };
+  }
+  const b = snap.bodies[name];
+  return { pos: b.pos, vel: b.vel, mu: GM_SUN + gmOf(name), offset: [0, 0, 0], about: 'the Sun' };
+}
 
 /**
  * Osculating two-body elements of a relative state (km, km/s) about a centre of mass `mu` (km³/s²).

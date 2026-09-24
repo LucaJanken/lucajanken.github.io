@@ -19,7 +19,8 @@ const COMMON = /* glsl */`
 varying vec3 vOmRel;
 uniform vec3 uSunRel;
 uniform float uSunR;
-uniform vec4 uOcc[4];
+uniform vec4 uOcc[4];      // occluder centre (km from this body) and equatorial radius
+uniform vec4 uOccPole[4];  // occluder pole (unit) and equatorial / polar radius
 uniform int uOccN;
 uniform int uAtmoIdx;
 uniform vec3 uAtmoLight;
@@ -42,6 +43,12 @@ float omLens(float R, float r, float d) {
   return R2 * (a1 - 0.5 * sin(2.0 * a1)) + r2 * (a2 - 0.5 * sin(2.0 * a2));
 }
 
+// Stretch space along an occluder's pole so that the flattened planet becomes a sphere of its
+// equatorial radius (Jupiter is 6.5% flatter than a sphere: with a mean radius, Io's eclipses would
+// start ~90 s late and end ~90 s early). The Sun's disc is barely distorted, since eclipses happen
+// with the Sun close to the occluder's equatorial plane.
+vec3 omStretch(vec3 v, vec4 pk) { return v + (pk.w - 1.0) * dot(v, pk.xyz) * pk.xyz; }
+
 // fraction of the limb-darkened Sun's light hidden by a disc of angular radius r at separation d
 float omCover(float Rs, float r, float d) {
   float hidden = 0.0, total = 0.0;
@@ -58,13 +65,16 @@ vec3 omSunlight(vec3 p) {
   vec3 toSun = uSunRel - p;
   float dS = length(toSun);
   vec3 nS = toSun / dS;
-  float aS = asin(clamp(uSunR / dS, 0.0, 1.0));
   vec3 light = vec3(1.0);
   for (int i = 0; i < 4; i++) {
     if (i >= uOccN) break;
-    vec3 toO = uOcc[i].xyz - p;
+    vec3 toO = omStretch(uOcc[i].xyz - p, uOccPole[i]);
+    vec3 toS = omStretch(toSun, uOccPole[i]);
+    float dSi = length(toS);
+    vec3 nSi = toS / dSi;
+    float aS = asin(clamp(uSunR / dSi, 0.0, 1.0));
     float dO = length(toO);
-    if (dot(toO, nS) <= 0.0 || dO >= dS) continue;
+    if (dot(toO, nSi) <= 0.0 || dO >= dSi) continue;
     vec3 nO = toO / dO;
     float rad = uOcc[i].w;
     bool atmo = i == uAtmoIdx;
@@ -72,7 +82,7 @@ vec3 omSunlight(vec3 p) {
     if (atmo) rad *= 1.0118;
     float aO = asin(clamp(rad / dO, 0.0, 1.0));
     // atan2 of |cross| and dot keeps full precision for nearly aligned vectors, where acos(dot) fails
-    float sep = atan(length(cross(nS, nO)), dot(nS, nO));
+    float sep = atan(length(cross(nSi, nO)), dot(nSi, nO));
     if (sep >= aS + aO) continue;
     float cov = pow(omCover(aS, aO, sep), uShGamma);
     // inside Earth's umbra the Moon is lit only by sunlight refracted through Earth's atmosphere,
@@ -104,6 +114,7 @@ export function makeShadowUniforms() {
     uSunRel: { value: new THREE.Vector3() },
     uSunR: { value: 695700 },
     uOcc: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
+    uOccPole: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 1, 0, 1)) },
     uOccN: { value: 0 },
     uAtmoIdx: { value: -1 },
     uAtmoLight: { value: new THREE.Color(0.11, 0.030, 0.009) },
@@ -121,13 +132,14 @@ export function makeShadowUniforms() {
 
 /**
  * Patch a MeshStandardMaterial so its direct sunlight is computed by omSunlight().
- * opts.night: texture of night-side lights (added where the Sun is below the horizon)
+ * opts.night: uniform { value: texture } of night-side lights (added where the Sun is below the horizon)
  * opts.blur: enable rotation blur of the colour map (used when the body spins faster than the frame rate can show)
+ * opts.lunar: airless regolith photometry (see below) instead of Lambert's law
  */
 export function patchBodyMaterial(mat, u, opts = {}) {
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, u);
-    if (opts.night) { sh.uniforms.uNight = { value: opts.night }; sh.uniforms.uNightOn = opts.nightOn; }
+    if (opts.night) { sh.uniforms.uNight = opts.night; sh.uniforms.uNightOn = opts.nightOn; }
     sh.vertexShader = 'varying vec3 vOmRel;\nuniform float uPhysScale;\n' + sh.vertexShader.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n  vOmRel = mat3(modelMatrix) * transformed * uPhysScale;');
@@ -153,37 +165,64 @@ export function patchBodyMaterial(mat, u, opts = {}) {
   diffuseColor *= sampledDiffuseColor;
 #endif`);
     }
+    // Lunar–Lambert law (McEwen 1991): regolith scatters light back toward the Sun, so a full Moon
+    // is evenly bright right to its limb instead of darkening like a Lambertian ball.
+    //   radiance ∝ μ0 · [2L/(μ0 + μ) + (1 − L)],  L(α) = 1 − 0.019α + 2.42e-4α² − 1.46e-6α³ (α in °)
+    // Lambert gives μ0 alone, so the direct light is multiplied by the bracket. μ0, μ: cosines of
+    // the incidence and emission angles, α: phase angle.
+    const lunar = !opts.lunar ? '' : /* glsl */`
+  {
+    vec3 sunV = normalize((viewMatrix * vec4(normalize(uSunRel - vOmRel), 0.0)).xyz);
+    float mu0 = max(dot(normal, sunV), 0.0), mu = max(dot(normal, geometryViewDir), 0.0);
+    float a = degrees(acos(clamp(dot(sunV, geometryViewDir), -1.0, 1.0)));
+    float L = clamp(1.0 + a * (-0.019 + a * (2.42e-4 - 1.46e-6 * a)), 0.0, 1.0);
+    reflectedLight.directDiffuse *= 2.0 * L / max(mu0 + mu, 1e-3) + (1.0 - L);
+    reflectedLight.directSpecular *= 0.0;   // regolith has no glossy reflection
+  }`;
     body = body.replace('#include <lights_fragment_end>', /* glsl */`#include <lights_fragment_end>
   vec3 omLight = omSunlight(vOmRel);
   reflectedLight.directDiffuse *= omLight;
-  reflectedLight.directSpecular *= omLight;`);
+  reflectedLight.directSpecular *= omLight;${lunar}`);
     if (opts.night) {
+      // (only once the day map has loaded: it provides the texture coordinates)
       body = body.replace('#include <opaque_fragment>', /* glsl */`
+#ifdef USE_MAP
   {
     vec3 up = normalize(vOmRel);
     float sunAlt = dot(up, normalize(uSunRel - vOmRel));
     // lights fade in through civil twilight (sun 0°..-6° below the horizon)
-    float night = smoothstep(0.0, -0.1, sunAlt);
-    outgoingLight += texture2D(uNight, vMapUv).rgb * night * uNightOn * 0.6;
+    float night = 1.0 - smoothstep(-0.1, 0.0, sunAlt);
+    // the Black Marble map also records moonlit land and sea; keep only the artificial lights
+    vec3 lights = texture2D(uNight, vMapUv).rgb;
+    lights *= smoothstep(0.02, 0.12, dot(lights, vec3(0.2126, 0.7152, 0.0722)));
+    outgoingLight += lights * night * uNightOn * 0.6;
   }
+#endif
 #include <opaque_fragment>`);
     }
     sh.fragmentShader = body.replace('#include <common>', '#include <common>\n' + frag);
   };
-  mat.customProgramCacheKey = () => 'om' + (opts.night ? 'N' : '') + (opts.blur ? 'B' : '');
+  mat.customProgramCacheKey = () => 'om' + (opts.night ? 'N' : '') + (opts.blur ? 'B' : '') + (opts.lunar ? 'L' : '');
 }
 
-// ---- Sun: textured, limb darkened, unlit ----------------------------------------------------
+// ---- Sun: the white-light photosphere ----------------------------------------------------------
+//
+// No surface map: in visible light the real disc is smooth apart from sunspots (not shown). What it
+// does show is limb darkening, stronger and so redder toward the edge. Modelled from first
+// principles: a grey atmosphere in the Eddington approximation, T⁴(τ) = ¾ Teff⁴ (τ + ⅔), seen at
+// optical depth τ = ⅔μ (Eddington–Barbier), so I(μ, λ) ∝ B_λ(T(⅔μ)). At 550 nm this gives an
+// edge-to-centre ratio of 0.42 (linear coefficient u ≈ 0.58; measured ≈ 0.6), weaker in red and
+// stronger in blue, as observed.
+const TEFF = 5772;
+const CENTRE_RGB = [1.0, 0.95, 0.9];   // a 5772 K photosphere is very slightly warm white in sRGB
 
-export function sunMaterial(map) {
+export function sunMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: map } },
     vertexShader: /* glsl */`
       #include <common>
       #include <logdepthbuf_pars_vertex>
-      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      varying vec3 vN; varying vec3 vV;
       void main() {
-        vUv = uv;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         vN = normalize(normalMatrix * normal); vV = -mv.xyz;
         gl_Position = projectionMatrix * mv;
@@ -192,13 +231,16 @@ export function sunMaterial(map) {
     fragmentShader: /* glsl */`
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      uniform sampler2D map;
-      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      varying vec3 vN; varying vec3 vV;
+      // hc/(λk) in kelvin for the effective wavelengths of the sRGB channels (610, 550, 465 nm)
+      const vec3 X = vec3(23587.0, 26160.0, 30942.0);
       void main() {
         #include <logdepthbuf_fragment>
         float mu = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
-        vec3 c = texture2D(map, vUv).rgb * 1.25 * (1.0 - ${U_LD.toFixed(2)} * (1.0 - mu));
-        gl_FragColor = vec4(c, 1.0);
+        float T = ${TEFF.toFixed(1)} * pow(0.75 * (2.0 / 3.0 * mu + 2.0 / 3.0), 0.25);
+        // Planck ratio B_λ(T) / B_λ(Teff)
+        vec3 I = (exp(X / ${TEFF.toFixed(1)}) - 1.0) / (exp(X / T) - 1.0);
+        gl_FragColor = vec4(vec3(${CENTRE_RGB.map(x => x.toFixed(2)).join(', ')}) * I, 1.0);
         #include <colorspace_fragment>
       }`,
   });

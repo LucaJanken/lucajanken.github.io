@@ -9,12 +9,10 @@
 // thousands of km as a Sun-centred float32 polyline would.
 
 import * as THREE from '../../vendor/three.min.js';
-import { oscElements, orbitPoint, gmOf } from '../astro/ephemeris.js';
+import { oscElements, orbitPoint, orbitState } from '../astro/ephemeris.js';
 import { BODIES } from '../data/bodies.js';
-import { toScene } from './bodies.js';
 
 const N = 480;
-const GM_SUN = 1.32712440041e11;
 
 export class Orbits {
   constructor(scene) {
@@ -33,8 +31,7 @@ export class Orbits {
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
       line.frustumCulled = false;
       scene.add(line);
-      const mu = def.parent === 'Sun' ? GM_SUN + gmOf(def.name) : gmOf(def.parent) + gmOf(def.name);
-      this.lines[def.name] = { def, line, mu };
+      this.lines[def.name] = { def, line };
     }
   }
 
@@ -48,19 +45,18 @@ export class Orbits {
       const d = disp[name];
       L.line.position.set(d[0] - origin[0], d[1] - origin[1], d[2] - origin[2]);
       if (!L.line.visible) continue;
-      const b = snap.bodies[name];
-      const rel = b.rel || b;   // planets: heliocentric state; moons: relative to the planet
-      const el = oscElements(rel.pos, rel.vel, L.mu);
+      const os = orbitState(snap, name), off = os.offset;
+      const el = oscElements(os.pos, os.vel, os.mu);
       if (!(el.e < 1)) { L.line.visible = false; continue; }
       const arr = L.line.geometry.attributes.position.array;
       for (let i = 0; i < N; i++) {
         // sample densely at both ends (next to the body), sparsely on the far side
         const g = (1 - Math.cos(Math.PI * i / (N - 1))) / 2;
-        const p = map(name, orbitPoint(el, el.E - 2 * Math.PI * g));
+        const q = orbitPoint(el, el.E - 2 * Math.PI * g);
+        const p = map(name, [q[0] + off[0], q[1] + off[1], q[2] + off[2]]);
         arr[i * 3] = p[0]; arr[i * 3 + 1] = p[1]; arr[i * 3 + 2] = p[2];
       }
       L.line.geometry.attributes.position.needsUpdate = true;
     }
   }
 }
-export { toScene };

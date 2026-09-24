@@ -5,7 +5,7 @@
 
 import * as THREE from '../../vendor/three.min.js';
 import { eqjToEcl } from '../astro/ephemeris.js';
-import { toScene } from './bodies.js';
+import { toScene } from './scale.js';
 
 // B−V colour index → approximate sRGB, through effective temperature (Ballesteros 2012) and a
 // Planck-curve fit (Tanner Helland), then desaturated: the eye sees star colours only faintly

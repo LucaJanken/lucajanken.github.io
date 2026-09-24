@@ -2,22 +2,23 @@
 import * as THREE from '../vendor/three.min.js';
 import { snapshot, AU_KM } from './astro/ephemeris.js';
 import { upcomingEvents } from './astro/events.js';
+import { DT_MEASURED_UNTIL } from './astro/deltat.js';
 import { BODIES, BY_NAME, meanRadius } from './data/bodies.js';
-import { DisplayScale } from './scene/scale.js';
-import { BodyViews, toScene } from './scene/bodies.js';
+import { DisplayScale, toScene } from './scene/scale.js';
+import { BodyViews } from './scene/bodies.js';
 import { Orbits } from './scene/orbits.js';
 import { Stars } from './scene/stars.js';
 import { View } from './scene/view.js';
 import { Labels } from './scene/labels.js';
 import { InfoPanel } from './ui/info.js';
-import { fmtDate, fmtTime, tzName, localInput, fmtRate, fmtRelative, pad } from './ui/format.js';
+import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate, fmtRelative } from './ui/format.js';
 
 const $ = id => document.getElementById(id);
 const DAY_MS = 86400000;
-const MIN_MS = Date.UTC(1000, 0, 1), MAX_MS = Date.UTC(2999, 11, 31, 23, 59);
+// 1 Jan 1000 in the Julian calendar (6 Jan proleptic Gregorian) to 31 Dec 2999
+const MIN_MS = Date.UTC(1000, 0, 6), MAX_MS = Date.UTC(2999, 11, 31, 23, 59);
 const VALID_FROM = Date.UTC(1800, 0, 1), VALID_TO = Date.UTC(2051, 0, 1);
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MOON_PARENTS = new Set(BODIES.filter(b => b.parent && b.parent !== 'Sun').map(b => b.parent));
 
 // ---------------------------------------------------------------- state
 const state = {
@@ -41,10 +42,10 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 1e-6, 1e7);
 const DEFAULT_FOV = 45;
 
-// the Sun is the only light; decay 0 keeps distant worlds visible (see the guide)
+// The Sun is the only light, so night sides are black, as a camera exposed for daylight sees them.
+// Decay 0 keeps distant worlds visible (see the guide).
 const sunLight = new THREE.PointLight(0xfff6ea, 3.4, 0, 0);
 scene.add(sunLight);
-scene.add(new THREE.AmbientLight(0xffffff, 0.09));
 
 const grid = new THREE.PolarGridHelper(1, 12, 8, 128, 0x2a3346, 0x1b2130);
 grid.material.transparent = true; grid.material.depthWrite = false;
@@ -91,6 +92,7 @@ const focusDistance = name => name === 'Sun' ? overviewDistance() : drawnRadius(
 
 // ---------------------------------------------------------------- selection and focus
 function select(name, fly) {
+  wake();
   state.selected = name;
   info.show(name);
   info.update(snap);
@@ -105,6 +107,7 @@ function select(name, fly) {
 // ---------------------------------------------------------------- scale changes
 let scaleAnim = null;
 function setScale(s, animate = true) {
+  wake();
   s = Math.max(0, Math.min(1, s));
   state.scaleTarget = s;
   if (animate && !REDUCED_MOTION) scaleAnim = { from: scale.s, to: s, t0: performance.now(), ms: 2200 };
@@ -135,16 +138,27 @@ function setTime(ms, { pause = false } = {}) {
   state.simMs = Math.max(MIN_MS, Math.min(MAX_MS, ms));
   if (pause) state.playing = false;
   hudDirty = true;
+  wake();
 }
 const rate = () => state.playing ? state.dir * Math.pow(10, state.speed) : 0;
 
 // ---------------------------------------------------------------- main loop
 let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60;
 let hudBoxes = null, screenPos = [];
+// Render on demand: while time is paused and nobody interacts, nothing changes on screen, so an
+// idle page draws nothing (laptop and phone batteries). Input, loads and state changes wake it.
+let wakeUntil = performance.now() + 3000;
+function wake(ms = 1500) { wakeUntil = Math.max(wakeUntil, performance.now() + ms); }
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
+  const active = state.playing || view.tween || scaleAnim || now < wakeUntil;
+  if (!active) {
+    // the clock text ("… from now") still ages, slowly
+    if (hudDirty || now - lastHud > 1000) { lastHud = now; hudDirty = false; updateHud(); }
+    return;
+  }
   frameDt = frameDt * 0.9 + dt * 0.1;
   const dtSim = rate() * dt;
   if (dtSim) {
@@ -161,11 +175,13 @@ function frame(now) {
     if (k >= 1) scaleAnim = null;
   }
   computeDisplay();
-  view.update(disp, drawnRadius(view.focus), 3.2 * scale.helio(50 * AU_KM));
+  const fd = BY_NAME[view.focus];
+  view.update(disp, drawnRadius(view.focus) * Math.max(...fd.shape) / meanRadius(fd), 3.2 * scale.helio(50 * AU_KM));
   const origin = view.origin;
   // simulated time per rendered frame, for rotation blur and to hide bodies that would strobe
   const perFrame = rate() * frameDt;
   bodies.update(snap, disp, origin, scale, perFrame);
+  bodies.updateGlow(camera, stage.clientHeight);
   for (const def of BODIES) {
     const v = bodies.views[def.name];
     const isMoon = def.parent && def.parent !== 'Sun';
@@ -201,6 +217,7 @@ function frame(now) {
   screenPos = labels.update(camera, W, H, entries.filter(e => !e.isMoon || moonSpread(e)), hudBoxes, state.selected);
   for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false, labels.items[e.name].ring.style.display = 'none';
 
+  bodies.loadVisible(camera, H);
   // swap in the high-resolution Earth when it fills the screen
   const se = screenPos.find(s => s.name === 'Earth');
   if (se && se.onScreen && se.rpx > 350) bodies.upgrade('Earth');
@@ -227,7 +244,7 @@ function updateHud() {
   const d = new Date(state.simMs);
   timeEls.clock.textContent = fmtTime(d);
   timeEls.date.textContent = fmtDate(d);
-  timeEls.tz.textContent = 'Local time · ' + tzName(d);
+  timeEls.tz.textContent = 'Local time · ' + tzName(d) + (civil(d).julian ? ' · Julian calendar' : '');
   timeEls.rel.textContent = fmtRelative(state.simMs - Date.now());
   timeEls.ut.textContent = 'UT ' + fmtTime(d, true, false) + (d.getUTCDate() !== d.getDate() ? ' (' + fmtDate(d, true) + ')' : '');
   const valid = state.simMs >= VALID_FROM && state.simMs < VALID_TO;
@@ -237,7 +254,8 @@ function updateHud() {
     $('tdUT').textContent = fmtDate(d, true) + ' ' + fmtTime(d, true);
     const tt = new Date(state.simMs + snap.deltaT * 1000);
     $('tdTT').textContent = fmtDate(tt, true) + ' ' + fmtTime(tt, true);
-    $('tdDT').textContent = snap.deltaT.toFixed(1) + ' s' + (valid && state.simMs < Date.now() + 5 * 365 * DAY_MS ? '' : ' (predicted)');
+    const dtNote = state.simMs > DT_MEASURED_UNTIL ? ' (predicted)' : state.simMs < Date.UTC(1657, 0, 1) ? ' (estimated from historical eclipses)' : ' (measured)';
+    $('tdDT').textContent = snap.deltaT.toFixed(1) + ' s' + dtNote;
     $('tdJD').textContent = (snap.tt + 2451545).toFixed(5);
   }
   const when = $('when');
@@ -286,9 +304,13 @@ function openEvents(more = false) {
   const list = $('evList');
   if (!more) { list.innerHTML = ''; evFrom = new Date(state.simMs); }
   const evs = upcomingEvents(evFrom, { solar: 4, lunar: 4, transits: 1 });
-  const cutoff = evs.filter(e => e.kind !== 'transit').reduce((m, e) => Math.max(m, e.date), 0);
+  // list only up to the earlier of the last solar and last lunar eclipse found, so the next batch
+  // (which starts there) cannot skip an eclipse of the other kind
+  const lastOf = kind => evs.filter(e => e.kind === kind).reduce((m, e) => Math.max(m, e.date), 0);
+  const cutoff = Math.min(lastOf('solar'), lastOf('lunar'));
+  if (!cutoff) { toast('No further events found.'); openSheet('events'); return; }
   for (const e of evs) {
-    if (e.kind === 'transit' && e.date > cutoff && evs.length > 3) continue;
+    if (e.date > cutoff) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'ev';
     b.innerHTML = `<span class="d">${fmtDate(e.date, true)}<br>${fmtTime(e.date, true, false)} UT</span><span class="t">${e.title}</span><span class="w">${e.where}</span>`;
@@ -301,6 +323,8 @@ function openEvents(more = false) {
 
 function jumpToEvent(e) {
   setTime(e.date.getTime(), { pause: true });
+  // a playback rate at which the event takes tens of seconds instead of passing in one frame
+  state.speed = Math.log10({ solar: 120, lunar: 600, transit: 600 }[e.kind]);
   snap = snapshot(state.simMs);
   setScale(1, false);
   computeDisplay();
@@ -349,21 +373,24 @@ function shareUrl() {
     scale: scale.s.toFixed(3), speed: state.speed.toFixed(2), play: state.playing ? 1 : 0,
     cam: [off.x, off.y, off.z].map(x => +x.toPrecision(5)).join(','),
   });
+  if (camera.fov !== DEFAULT_FOV) q.set('fov', +camera.fov.toPrecision(4));
   return location.origin + location.pathname + '#' + q.toString();
 }
 function readUrl() {
   const q = new URLSearchParams(location.hash.slice(1));
   const t = Date.parse(q.get('t') || '');
   if (!Number.isNaN(t)) setTime(t);
-  if (q.has('speed')) state.speed = Math.max(0, Math.min(8.2, +q.get('speed')));
+  const num = k => q.has(k) && Number.isFinite(+q.get(k)) ? +q.get(k) : null;
+  if (num('speed') !== null) state.speed = Math.max(0, Math.min(8.2, num('speed')));
   if (q.has('play')) state.playing = q.get('play') === '1';
-  if (q.has('scale')) setScale(+q.get('scale'), false);
+  if (num('scale') !== null) setScale(num('scale'), false);
   const focus = q.get('focus');
-  return { focus: BY_NAME[focus] ? focus : null, sel: BY_NAME[q.get('sel')] ? q.get('sel') : null, cam: (q.get('cam') || '').split(',').map(Number) };
+  return { focus: BY_NAME[focus] ? focus : null, sel: BY_NAME[q.get('sel')] ? q.get('sel') : null, cam: (q.get('cam') || '').split(',').map(Number), fov: num('fov') };
 }
 
 // ---------------------------------------------------------------- controls wiring
 function paintToggles() {
+  wake();
   for (const b of document.querySelectorAll('[data-toggle]')) {
     const k = b.dataset.toggle;
     const on = k === 'follow' ? view.follow : k === 'penumbra' ? shared.shGamma.value < 1 : state.show[k];
@@ -371,6 +398,16 @@ function paintToggles() {
   }
 }
 function wire() {
+  // anything the user does, and anything that finishes loading, may change the picture
+  for (const ev of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'click', 'touchstart']) window.addEventListener(ev, () => wake(), { capture: true, passive: true });
+  window.addEventListener('pointermove', e => { if (e.buttons) wake(); }, { passive: true });
+  document.addEventListener('visibilitychange', () => wake());
+  view.controls.addEventListener('change', () => wake(300));   // includes damping after a drag
+  THREE.DefaultLoadingManager.onProgress = () => wake();
+  bodies.onChange = () => wake();
+  stars.ready.then(() => wake());
+  document.fonts && document.fonts.ready.then(() => { labels.remeasure(); wake(); });
+
   for (const b of document.querySelectorAll('[data-toggle]')) b.addEventListener('click', () => {
     const k = b.dataset.toggle;
     if (k === 'follow') view.follow = !view.follow;
@@ -391,7 +428,7 @@ function wire() {
   $('slowBtn').addEventListener('click', () => { state.speed = Math.max(0, +(state.speed - 0.25).toFixed(2)); hudDirty = true; });
   $('fastBtn').addEventListener('click', () => { state.speed = Math.min(8.2, +(state.speed + 0.25).toFixed(2)); hudDirty = true; });
   $('when').addEventListener('change', e => {
-    const t = new Date(e.target.value).getTime();   // datetime-local is parsed as local time
+    const t = parseLocalInput(e.target.value);   // local time, Julian calendar before 1582
     if (!Number.isNaN(t) && t >= MIN_MS && t <= MAX_MS) setTime(t);
   });
   $('timeMore').addEventListener('click', e => {
@@ -408,6 +445,9 @@ function wire() {
     try { await navigator.clipboard.writeText(url); toast('Link to this exact view copied.'); } catch { toast('Link is in the address bar.'); }
   });
   for (const c of document.querySelectorAll('[data-close]')) c.addEventListener('click', closeSheets);
+  // the info panel changes height when "More data" opens or (on phones) when it expands
+  $('more').addEventListener('toggle', () => { hudBoxes = null; });
+  $('info').addEventListener('click', () => { hudBoxes = null; });
   $('menuBtn').addEventListener('click', e => {
     const r = $('right'); r.classList.toggle('open');
     e.currentTarget.setAttribute('aria-expanded', r.classList.contains('open')); hudBoxes = null;
@@ -431,10 +471,11 @@ function wire() {
   window.addEventListener('keydown', e => {
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') { if (e.key.startsWith('Arrow')) e.stopImmediatePropagation(); return; }
+    if (e.key.startsWith('Arrow') && e.target.closest && e.target.closest('.sheet')) { e.stopImmediatePropagation(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     let used = true;
     switch (e.key) {
-      case ' ': if (tag === 'BUTTON') { used = false; break; } state.playing = !state.playing; break;
+      case ' ': if (tag === 'BUTTON' || tag === 'SUMMARY') { used = false; break; } state.playing = !state.playing; break;
       case ',': setTime(state.simMs - DAY_MS); break;
       case '.': setTime(state.simMs + DAY_MS); break;
       case '[': state.speed = Math.max(0, state.speed - 0.25); break;
@@ -456,6 +497,7 @@ function wire() {
     renderer.setSize(W, H, false);
     camera.aspect = W / H; camera.updateProjectionMatrix();
     hudBoxes = null;
+    wake();
   };
   new ResizeObserver(resize).observe(stage);
   resize();
@@ -476,6 +518,7 @@ if (fromUrl.focus) {
     view.controls.target.set(0, 0, 0);
     camera.position.set(...fromUrl.cam);
   }
+  if (fromUrl.fov > 0 && fromUrl.fov < 120) { camera.fov = fromUrl.fov; camera.updateProjectionMatrix(); }
 }
 paintToggles();
 applyScale(scale.s);
@@ -492,4 +535,4 @@ function look(name, dir = 'sun', k = 5) {
   if (dir === 'sun') d.add(new THREE.Vector3(0, 0.35, 0)).normalize();
   view.setFocus(name, disp, drawnRadius(name) * k, { dir: d });
 }
-window.solarSystem = { look, state, view, scale, bodies, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };
+window.solarSystem = { look, state, view, scale, bodies, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };

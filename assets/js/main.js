@@ -38,21 +38,25 @@
 
   /* ---------- Active section in the nav ---------- */
   var navLinks = Array.prototype.slice.call(document.querySelectorAll(".nav a[href^='#']"));
-  if ("IntersectionObserver" in window && navLinks.length) {
-    var byId = {};
-    navLinks.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting && byId[e.target.id]) {
-          navLinks.forEach(function (a) { a.classList.remove("active"); });
-          byId[e.target.id].classList.add("active");
-        }
-      });
-    }, { rootMargin: "-45% 0px -50% 0px" });
-    Object.keys(byId).forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) io.observe(el);
-    });
+  var sections = navLinks.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
+  if (navLinks.length) {
+    var ticking = false;
+    // The active section is the last one whose top has passed 45% of the viewport,
+    // except at the very bottom of the page, where the last section always wins.
+    var setActive = function () {
+      ticking = false;
+      var line = window.innerHeight * 0.45;
+      var current = -1;
+      sections.forEach(function (s, i) { if (s && s.getBoundingClientRect().top <= line) current = i; });
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) current = navLinks.length - 1;
+      navLinks.forEach(function (a, i) { a.classList.toggle("active", i === current); });
+    };
+    var onScroll = function () {
+      if (!ticking) { ticking = true; requestAnimationFrame(setActive); }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    setActive();
   }
 
   /* ---------- Click the email address to copy it ---------- */

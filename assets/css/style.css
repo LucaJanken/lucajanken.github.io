@@ -104,6 +104,7 @@ p { margin: 0; }
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 10;
+  background: var(--bg);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(140%) blur(10px);
   -webkit-backdrop-filter: saturate(140%) blur(10px);
@@ -310,7 +311,7 @@ p { margin: 0; }
   margin-bottom: 18px;
 }
 
-/* ---------- Resumé ---------- */
+/* ---------- Résumé ---------- */
 
 .timeline { display: grid; gap: 26px; margin: 0; padding: 0; list-style: none; }
 
@@ -377,15 +378,15 @@ p { margin: 0; }
   padding-top: 4px;
 }
 .pub-main { display: grid; gap: 6px; }
-.pub h4 {
+.pub h3 {
   margin: 0;
   font-family: var(--serif);
   font-weight: 500;
   font-size: var(--step-1);
   line-height: 1.35;
 }
-.pub h4 a { color: var(--text); }
-.pub h4 a:hover { color: var(--accent); }
+.pub h3 a { color: var(--text); }
+.pub h3 a:hover { color: var(--accent); }
 .pub .authors { color: var(--muted); font-size: 0.9375rem; }
 .pub .authors strong { color: var(--text); font-weight: 600; }
 .pub .meta {
@@ -441,15 +442,15 @@ p { margin: 0; }
   align-items: baseline;
   gap: 4px 14px;
 }
-.project h4 {
+.project h3 {
   margin: 0;
   font-family: var(--serif);
   font-weight: 500;
   font-size: var(--step-1);
   line-height: 1.3;
 }
-.project h4 a { color: var(--text); }
-.project h4 a:hover { color: var(--accent); }
+.project h3 a { color: var(--text); }
+.project h3 a:hover { color: var(--accent); }
 .project .lang {
   font-family: var(--mono);
   font-size: 0.6875rem;

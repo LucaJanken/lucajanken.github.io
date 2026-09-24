@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar System accuracy tests</title>
+<style>
+  body { margin: 0; padding: 24px; background: #04050a; color: #e8eaf0; font: 13px/1.5 ui-monospace, monospace; }
+  h1 { font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; }
+  .r { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .pass { color: #8fd6a0; } .fail { color: #ff8f7a; }
+  .d { color: rgba(232,234,240,0.7); padding-left: 3.5em; }
+</style>
+</head>
+<body>
+<h1>Accuracy checks</h1>
+<p>The model against JPL Horizons (DE440), NASA's eclipse canon and physical invariants. Same checks as <code>node tests/run.mjs</code>.</p>
+<div id="out">running…</div>
+<script type="module">
+  import { runAll } from './checks.js';
+  const fixture = await (await fetch('fixtures/horizons.json')).json();
+  const res = runAll(fixture), out = document.getElementById('out');
+  out.innerHTML = res.map(r => `<div class="r"><span class="${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span>  ${r.name}<div class="d">${r.detail}</div></div>`).join('')
+    + `<p>${res.filter(r => r.pass).length}/${res.length} passed</p>`;
+</script>
+</body>
+</html>

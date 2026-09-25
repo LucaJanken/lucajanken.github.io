@@ -103,6 +103,7 @@ const drawnExtent = name => { const d = BY_NAME[name]; return drawnRadius(name) 
 function select(name, fly) {
   wake();
   state.selected = name;
+  openSystems.add(systemOf(name));
   info.show(name);
   info.update(snap);
   paintList();
@@ -350,22 +351,39 @@ function updateHud() {
 }
 
 // ---------------------------------------------------------------- body list
+// planets whose moons are listed: the selected body's system opens by itself, and each planet's
+// moon count opens or closes its moons, so a moon can be chosen without flying to the planet first
+const openSystems = new Set();
+const systemOf = name => BY_NAME[name].parent && BY_NAME[name].parent !== 'Sun' ? BY_NAME[name].parent : name;
 function buildList() {
   const ul = $('bodyList');
   for (const def of BODIES) {
     const isMoon = def.parent && def.parent !== 'Sun';
     const li = document.createElement('li');
+    li.className = 'body-item' + (isMoon ? ' moon' : '');
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'body-btn' + (isMoon ? ' moon' : '');
+    btn.className = 'body-btn';
     btn.dataset.body = def.name;
-    if (isMoon) btn.dataset.parent = def.parent;
+    if (isMoon) li.dataset.parent = def.parent;
     btn.innerHTML = `<span class="dot" style="background:${def.color}"></span><span>${def.name}</span>`;
-    const nMoons = BODIES.filter(b => b.parent === def.name).length;
-    if (nMoons && def.name !== 'Sun') btn.insertAdjacentHTML('beforeend', `<span class="n" data-n="${nMoons}">${nMoons}</span>`);
-    // on phones the list is a menu over the view: get it out of the way of the body just chosen
-    btn.addEventListener('click', () => { select(def.name, true); setMenu(false); });
+    // the menu stays open, so several bodies can be visited in a row; tapping the view closes it
+    btn.addEventListener('click', () => select(def.name, true));
     li.appendChild(btn);
+    const nMoons = BODIES.filter(b => b.parent === def.name).length;
+    if (nMoons && def.name !== 'Sun') {
+      const exp = document.createElement('button');
+      exp.type = 'button';
+      exp.className = 'exp';
+      exp.dataset.system = def.name;
+      exp.dataset.n = nMoons;
+      exp.setAttribute('aria-label', `${def.name}: ${nMoons} ${nMoons > 1 ? 'moons' : 'moon'}`);
+      exp.addEventListener('click', () => {
+        if (openSystems.has(def.name)) openSystems.delete(def.name); else openSystems.add(def.name);
+        paintList();
+      });
+      li.appendChild(exp);
+    }
     ul.appendChild(li);
   }
 }
@@ -376,13 +394,19 @@ function setMenu(open) {
   hudBoxes = null;
 }
 function paintList() {
-  const sel = state.selected, selSystem = BY_NAME[sel] && BY_NAME[sel].parent && BY_NAME[sel].parent !== 'Sun' ? BY_NAME[sel].parent : sel;
-  for (const btn of document.querySelectorAll('.body-btn')) {
-    const name = btn.dataset.body, parent = btn.dataset.parent;
-    btn.setAttribute('aria-current', name === sel);
-    if (parent) btn.parentElement.hidden = !(parent === selSystem && state.show.moons);
-    const n = btn.querySelector('.n');
-    if (n) n.textContent = n.dataset.n + (name === selSystem && state.show.moons ? ' ▾' : ' ▸');
+  const sel = state.selected, moons = state.show.moons;
+  for (const li of document.querySelectorAll('.body-item')) {
+    const btn = li.querySelector('.body-btn'), exp = li.querySelector('.exp');
+    btn.setAttribute('aria-current', btn.dataset.body === sel);
+    li.classList.toggle('cur', btn.dataset.body === sel);
+    if (li.dataset.parent) li.hidden = !(moons && openSystems.has(li.dataset.parent));
+    if (exp) {
+      const open = moons && openSystems.has(exp.dataset.system);
+      exp.textContent = exp.dataset.n + (moons ? open ? ' ▾' : ' ▸' : '');
+      exp.setAttribute('aria-expanded', open);
+      // with moons hidden there is nothing to open
+      exp.disabled = !moons;
+    }
   }
   hudBoxes = null;
 }
@@ -626,6 +650,10 @@ function wire() {
   };
   new ResizeObserver(resize).observe(stage);
   resize();
+  // the phone layout stacks the information panel on the time controls, whose height depends on
+  // how their rows wrap
+  const ctl = document.querySelector('.timectl');
+  new ResizeObserver(() => { $('app').style.setProperty('--ctl-h', ctl.offsetHeight + 'px'); hudBoxes = null; }).observe(ctl);
 }
 
 // ---------------------------------------------------------------- start

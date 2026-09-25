@@ -11,7 +11,7 @@
 </head>
 <body>
 <div id="app">
-  <div id="stage" aria-label="3D view of the Solar System. Drag to rotate, scroll or pinch to zoom." role="img"></div>
+  <div id="stage" aria-label="3D view of the Solar System. Drag to rotate, scroll to zoom; on a touchscreen, drag with one finger to move, two to turn, and pinch to zoom." role="img"></div>
   <div id="labels"><div class="hover-ring" id="hoverRing"></div></div>
 
   <header class="time" data-hud>
@@ -55,11 +55,13 @@
   </div>
 
   <section class="panel info" id="info" data-hud aria-label="Selected body">
-    <div class="info-head" aria-live="polite"><div class="info-name" id="infoName">Sun</div><div class="info-type" id="infoType"></div></div>
+    <div class="info-head"><div class="info-name" id="infoName" aria-live="polite">Sun</div><div class="info-type" id="infoType"></div><button type="button" class="info-min" id="infoMin" aria-expanded="true" aria-controls="infoBody" title="Hide the details">–</button></div>
+    <div class="info-body" id="infoBody">
     <p class="info-desc" id="infoDesc"></p>
     <dl class="facts" id="facts"></dl>
     <details id="more"><summary>More data</summary><dl class="facts" id="moreFacts"></dl></details>
     <div class="note" id="infoNote"></div>
+    </div>
   </section>
 
   <section class="panel timectl" data-hud aria-label="Time controls">
@@ -103,12 +105,13 @@
 
     <h3>Getting around</h3>
     <ul>
-      <li>Drag to rotate, scroll or pinch to zoom, right-drag, shift-drag or arrow keys to pan.</li>
-      <li>Click a body, its label, or its name in the list to fly to it. The camera glides over without changing your zoom or viewing angle (it only backs off if it would end up inside the body). <b>Lock</b> keeps the camera travelling with the selected body; unlock it to let the body drift away, and lock again to catch up with it.</li>
+      <li>Drag to rotate, scroll to zoom, right-drag, shift-drag or arrow keys to pan. On a touchscreen, drag with one finger to move the view, with two to turn it, and pinch to zoom.</li>
+      <li>Click a body, its label, or its name in the list to fly to it (the count next to a planet opens the list of its moons). The camera glides over without changing your zoom or viewing angle (it only backs off if it would end up inside the body). <b>Lock</b> keeps the camera travelling with the selected body; unlock it to let the body drift away, and lock again to catch up with it.</li>
       <li>The speed slider runs time forward to the right and backward to the left, from real time next to the middle to years per second at the ends; the notch in the middle stops it. <b>Play</b> and <b>Pause</b> keep the chosen speed.</li>
       <li>Type a date and press <b>OK</b> (or <kbd>Enter</kbd>) to go there, in the time the clock shows (local or UTC); <kbd>Esc</kbd> puts back the current one.</li>
       <li>The button above the clock switches it between <b>Local</b> time, <b>UTC</b>, and <b>Scientific</b>, which adds the astronomical time scales: UT (Earth’s rotation, UT1), TT (the uniform time the planets move by), ΔT = TT − UT and the Julian Date. The model takes UTC to be UT1; the two never differ by more than 0.9 s.</li>
       <li><kbd>Space</kbd> play/pause · <kbd>,</kbd> <kbd>.</kbd> one day back/forward · <kbd>[</kbd> <kbd>]</kbd> slower/faster · <kbd>R</kbd> reverse the direction of time · <kbd>N</kbd> now · <kbd>T</kbd> scale · <kbd>Esc</kbd> back to the overview.</li>
+      <li>The <b>–</b> in the corner of the information panel folds it down to the body’s name; tap the panel to bring the details back. On a phone, tap the panel to show all of its data.</li>
     </ul>
 
     <h3>Scale</h3>

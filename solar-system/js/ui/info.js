@@ -35,8 +35,28 @@ export class InfoPanel {
     this.note = document.getElementById('infoNote');
     this.current = null;
     this.drawn = null;   // the snapshot and body the panel shows
-    // on phones the panel is compact; tapping it expands it
-    this.el.addEventListener('click', e => { if (e.target.closest('summary')) return; this.el.classList.toggle('expanded'); });
+    // The minimize button folds the panel down to its heading (remembered); tapping a folded panel
+    // opens it again. On phones an open panel is compact, and tapping it expands it.
+    this.minBtn = document.getElementById('infoMin');
+    let min = false;
+    try { min = localStorage.getItem('solarSystem.infoMin') === '1'; } catch {}
+    this.setMin(min);
+    this.el.addEventListener('click', e => {
+      if (e.target.closest('summary')) return;
+      if (e.target.closest('#infoMin')) this.setMin(!this.min);
+      else if (this.min) this.setMin(false);
+      else this.el.classList.toggle('expanded');
+    });
+  }
+
+  setMin(on) {
+    this.min = on;
+    this.el.classList.toggle('min', on);
+    this.minBtn.textContent = on ? '+' : '–';
+    this.minBtn.setAttribute('aria-expanded', !on);
+    this.minBtn.setAttribute('aria-label', on ? 'Show details' : 'Hide details');
+    this.minBtn.title = on ? 'Show the details' : 'Hide the details';
+    try { localStorage.setItem('solarSystem.infoMin', on ? '1' : '0'); } catch {}
   }
 
   show(name) {

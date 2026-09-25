@@ -15,6 +15,9 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
 - Selecting a body glides the camera over to it without changing zoom or viewing angle (it only
   backs off if it would end up inside the body). Lock keeps the camera travelling with the
   selected body; locking again after drifting catches up with it. Axis shows its rotation axis.
+- On a touchscreen, one finger moves the view, two fingers turn it and pinch to zoom. The phone
+  menu stays open while bodies are picked from it; a planet's moon count opens its moons in the
+  list. The information panel folds down to the body's name with its – button (remembered).
 - The view state, including time, speed and direction, is kept in the URL by Share view
   (`#t=…&speed=…&dir=-1…`; links without `dir` run forward).
 

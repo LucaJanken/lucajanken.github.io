@@ -17,6 +17,8 @@ export class View {
     this.controls.dampingFactor = 0.08;
     this.controls.zoomSpeed = 1.2;
     this.controls.listenToKeyEvents(window);
+    // touch works like a map: one finger moves the view, two fingers turn it and pinch to zoom
+    this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
     this.focus = 'Sun';
     this.lock = true;
     this.origin = [0, 0, 0];

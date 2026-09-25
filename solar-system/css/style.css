@@ -129,6 +129,10 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
 .btn:hover { border-color: var(--line-strong); }
 .btn.primary { border-color: oklch(0.84 0.13 78 / 0.5); background: var(--accent-soft); color: var(--accent-text); min-width: 84px; }
 .btn[aria-pressed="true"] { border-color: oklch(0.84 0.13 78 / 0.5); background: var(--accent-soft); color: var(--accent-text); }
+/* ◂ step ▸ as one control */
+.stepper { display: flex; }
+.stepper .btn + .btn { border-left: 0; }
+#stepBtn { min-width: 52px; color: var(--text); }
 .rate { min-width: 136px; text-align: right; font: 400 11px/1 var(--mono); color: var(--text-2); display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
 /* paused: the rate stays readable, dimmed, after a small pause glyph */
 .rate.paused { color: var(--text-3); }

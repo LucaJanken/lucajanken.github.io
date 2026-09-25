@@ -7,13 +7,15 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
 
 - Time starts at the present, running at real time. The speed slider is signed and logarithmic:
   right runs forward, left backward, from real time next to the centre to years per second at the
-  ends; the notch in the middle stops time. Play/Pause keeps the chosen speed (shown dimmed while
-  paused), and `R` reverses it.
+  ends; the notch in the middle stops time (the rate reads 0×). Play/Pause keeps the chosen speed
+  (shown dimmed while paused), and `R` reverses it. ◂ ▸ (or `,` `.`) step by an hour, a day, a
+  calendar month or a calendar year; tapping the step between them changes it (remembered).
 - A typed date is a draft until OK or Enter; Esc puts back the displayed time.
 - The clock shows Local time, UTC, or Scientific (UTC with UT, TT, ΔT and the Julian Date); the
   choice is remembered. An Extrapolated tag appears outside the validated 1800–2050.
 - Selecting a body glides the camera over to it without changing zoom or viewing angle (it only
-  backs off if it would end up inside the body). Lock keeps the camera travelling with the
+  backs off if it would end up inside the body). Selecting it again zooms to a comfortable view of
+  it, or of the whole Solar System for the Sun. Lock keeps the camera travelling with the
   selected body; locking again after drifting catches up with it. Axis shows its rotation axis.
 - On a touchscreen, one finger moves the view, two fingers turn it and pinch to zoom. The phone
   menu stays open while bodies are picked from it; a planet's moon count opens its moons in the

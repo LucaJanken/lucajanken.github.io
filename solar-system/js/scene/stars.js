@@ -150,8 +150,13 @@ export class Stars {
   render(renderer, mainCamera, pixelRatio) {
     if (!this.visible) return;
     this.camera.quaternion.copy(mainCamera.quaternion);
-    if (this.camera.fov !== mainCamera.fov || this.camera.aspect !== mainCamera.aspect) {
-      this.camera.fov = mainCamera.fov; this.camera.aspect = mainCamera.aspect; this.camera.updateProjectionMatrix();
+    // the same projection as the main camera, including its view offset (see main.js)
+    const v = mainCamera.view && mainCamera.view.enabled ? mainCamera.view : null, off = v ? v.offsetY / v.fullHeight : 0;
+    if (this.camera.fov !== mainCamera.fov || this.camera.aspect !== mainCamera.aspect || this.offset !== off) {
+      this.camera.fov = mainCamera.fov; this.camera.aspect = mainCamera.aspect; this.offset = off;
+      if (v) this.camera.setViewOffset(v.fullWidth, v.fullHeight, v.offsetX, v.offsetY, v.width, v.height);
+      else this.camera.clearViewOffset();
+      this.camera.updateProjectionMatrix();
     }
     if (this.uniforms) this.uniforms.uPx.value = pixelRatio;
     renderer.render(this.scene, this.camera);

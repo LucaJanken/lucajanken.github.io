@@ -95,13 +95,66 @@ function orbitMapping(name) {
 }
 const drawnRadius = name => scale.size(meanRadius(BY_NAME[name]));
 const overviewDistance = () => 2.1 * scale.helio(30.1 * AU_KM);
-const focusDistance = name => name === 'Sun' ? overviewDistance() : drawnRadius(name) * 5;
 // largest drawn radius (equatorial, for flattened planets)
 const drawnExtent = name => { const d = BY_NAME[name]; return drawnRadius(name) * Math.max(...d.shape) / meanRadius(d); };
+// A comfortable distance to look at a body from: it spans about 40% of the narrower side of the
+// part of the screen the panels leave free (so a phone held upright does not crop it), Saturn's
+// rings included. For the Sun, the whole Solar System.
+function focusDistance(name) {
+  if (name === 'Sun') return overviewDistance();
+  const d = BY_NAME[name], W = stage.clientWidth || 1, H = stage.clientHeight || 1;
+  const extent = Math.max(drawnExtent(name), d.rings && d.rings.outerKm ? drawnRadius(name) * d.rings.outerKm / meanRadius(d) : 0);
+  const side = Math.min(W, H, free.bottom - free.top);
+  return extent / Math.sin(Math.atan(0.4 * Math.tan(DEFAULT_FOV * Math.PI / 360) * side / H));
+}
+// The viewing direction for that close look: the user's own, turned toward the Sun just enough that
+// the body is seen at most 60° from full phase (three quarters lit) rather than as a dark disc.
+const MAX_PHASE = Math.PI / 3;
+function litSide(name) {
+  if (name === 'Sun') return null;
+  const s = new THREE.Vector3(...disp[name]).negate().normalize();
+  const c = camera.position.clone().sub(view.controls.target).normalize(), cos = c.dot(s);
+  if (cos >= Math.cos(MAX_PHASE)) return c;
+  const perp = c.addScaledVector(s, -cos);
+  // straight from behind: come round over the body's north side of the ecliptic
+  if (perp.lengthSq() < 1e-6) perp.set(0, 1, 0).addScaledVector(s, -s.y);
+  return s.multiplyScalar(Math.cos(MAX_PHASE)).addScaledVector(perp.normalize(), Math.sin(MAX_PHASE));
+}
+
+// On phones the clock covers the top of the screen and the information panel and time controls
+// the lower half, right where the focused body would be. The projection is shifted (a view offset,
+// so orbiting still turns about the body) to put the focus in the middle of the part left free.
+const free = { top: 0, bottom: Infinity };
+let viewShift = 0, shiftTarget = 0, shiftApplied = null;
+function measureFree() {
+  const W = stage.clientWidth, H = stage.clientHeight, cx = W / 2;
+  free.top = 0; free.bottom = H;
+  for (const el of [document.querySelector('header.time'), $('info'), document.querySelector('.timectl')]) {
+    if (!el.offsetParent) continue;
+    const r = el.getBoundingClientRect();
+    // only panels across the middle of the screen are in the way (the desktop layout keeps to the sides)
+    if (r.left > cx || r.right < cx) continue;
+    if (r.top < H / 2 && r.bottom < H * 0.4) free.top = Math.max(free.top, r.bottom);
+    else free.bottom = Math.min(free.bottom, r.top);
+  }
+  if (free.bottom - free.top < H * 0.2) { free.top = 0; free.bottom = H; }
+  shiftTarget = H / 2 - (free.top + free.bottom) / 2;
+}
+function applyShift(dt) {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  viewShift += (shiftTarget - viewShift) * Math.min(1, dt * 8);
+  if (Math.abs(shiftTarget - viewShift) < 0.5) viewShift = shiftTarget;
+  const key = W + 'x' + H + ':' + viewShift.toFixed(1);
+  if (key === shiftApplied) return;
+  shiftApplied = key;
+  if (Math.abs(viewShift) < 0.5) camera.clearViewOffset();
+  else camera.setViewOffset(W, H, 0, viewShift, W, H);
+}
 
 // ---------------------------------------------------------------- selection and focus
 function select(name, fly) {
   wake();
+  const again = name === state.selected;
   state.selected = name;
   openSystems.add(systemOf(name));
   info.show(name);
@@ -109,9 +162,11 @@ function select(name, fly) {
   paintList();
   if (fly) {
     camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
-    // only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
     const R = drawnExtent(name);
-    view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
+    // choosing the selected body again zooms in or out to a comfortable view of it, from the same side
+    if (again) view.setFocus(name, disp, { dist: focusDistance(name), dir: litSide(name) });
+    // otherwise only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
+    else view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
   }
   bodies.setAxis(name);
   hudDirty = true;
@@ -156,6 +211,29 @@ function setTime(ms, { pause = false } = {}) {
 const setRate = () => state.dir * Math.pow(10, state.speed);   // the rate while playing
 const rate = () => state.playing ? setRate() : 0;
 function setSpeed(x) { state.speed = Math.max(0, Math.min(SPEED_MAX, +x.toFixed(2))); state.parked = false; hudDirty = true; }
+// the time step of the ◂ ▸ buttons (and , .): calendar months and years keep the day and time
+const STEPS = [
+  { label: '1 h', name: 'hour', ms: 3600000 }, { label: '1 d', name: 'day', ms: DAY_MS },
+  { label: '1 mo', name: 'month', months: 1 }, { label: '1 yr', name: 'year', months: 12 },
+];
+let step = STEPS[1];
+try { step = STEPS.find(s => s.name === localStorage.getItem('solarSystem.step')) || step; } catch {}
+function stepTime(sign) {
+  if (step.ms) return setTime(state.simMs + sign * step.ms);
+  // in UTC, clamped to the length of the month (31 Jan + 1 month is 28 or 29 Feb)
+  const d = new Date(state.simMs), day = d.getUTCDate();
+  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + sign * step.months);
+  d.setUTCDate(Math.min(day, new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()));
+  setTime(d.getTime());
+}
+function setStep(s) {
+  step = s;
+  try { localStorage.setItem('solarSystem.step', s.name); } catch {}
+  $('stepBtn').textContent = s.label;
+  $('stepBtn').setAttribute('aria-label', `Step: one ${s.name}. Change`);
+  $('backBtn').title = `Back one ${s.name} ( , )`; $('backBtn').setAttribute('aria-label', $('backBtn').title);
+  $('fwdBtn').title = `Forward one ${s.name} ( . )`; $('fwdBtn').setAttribute('aria-label', $('fwdBtn').title);
+}
 function setPlaying(on) { state.playing = on; if (on) state.parked = false; hudDirty = true; }
 
 // ---------------------------------------------------------------- main loop
@@ -169,7 +247,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const elapsed = (now - last) / 1000, dt = Math.min(0.1, elapsed);
   last = now;
-  const active = state.playing || view.tween || scaleAnim || now < wakeUntil;
+  const active = state.playing || view.tween || scaleAnim || now < wakeUntil || viewShift !== shiftTarget;
   if (!active) {
     // the clock text ("… from now") still ages, slowly
     if (hudDirty || now - lastHud > 1000) { lastHud = now; hudDirty = false; updateHud(); }
@@ -194,6 +272,7 @@ function frame(now) {
   }
   computeDisplay();
   view.update(disp, drawnExtent(view.focus), 3.2 * scale.helio(50 * AU_KM));
+  applyShift(dt);
   // OrbitControls turns the camera with lookAt, which leaves the view matrix one orientation
   // behind until the render; the labels, picking and glare below project with it
   camera.updateMatrixWorld();
@@ -224,9 +303,12 @@ function frame(now) {
 
   // labels (and screen positions for picking)
   const W = stage.clientWidth, H = stage.clientHeight;
-  if (!hudBoxes) hudBoxes = [...document.querySelectorAll('[data-hud]')].filter(e => e.offsetParent).map(e => {
-    const r = e.getBoundingClientRect(); return { left: r.left - 4, right: r.right + 4, top: r.top - 4, bottom: r.bottom + 4 };
-  });
+  if (!hudBoxes) {
+    hudBoxes = [...document.querySelectorAll('[data-hud]')].filter(e => e.offsetParent).map(e => {
+      const r = e.getBoundingClientRect(); return { left: r.left - 4, right: r.right + 4, top: r.top - 4, bottom: r.bottom + 4 };
+    });
+    measureFree();
+  }
   const entries = BODIES.map((def, i) => {
     const v = bodies.views[def.name];
     const isMoon = def.parent && def.parent !== 'Sun';
@@ -339,11 +421,12 @@ function updateHud() {
   const when = $('when');
   if (!whenStaged && document.activeElement !== when) when.value = localInput(d, utc);
   $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
-  // the rate stays visible while paused (dimmed): it is what Play resumes at
-  const rateEl = $('rate');
-  rateEl.textContent = fmtRate(setRate());
-  rateEl.classList.toggle('paused', !state.playing);
-  rateEl.title = state.playing ? 'Simulation speed' : 'Paused. Play resumes at this speed.';
+  // Paused with the button, the rate stays visible (dimmed): it is what Play resumes at. Stopped in
+  // the slider's notch, time stands still and the rate says so.
+  const rateEl = $('rate'), stopped = !state.playing && state.parked;
+  rateEl.textContent = stopped ? fmtRate(0) : fmtRate(setRate());
+  rateEl.classList.toggle('paused', !state.playing && !stopped);
+  rateEl.title = state.playing ? 'Simulation speed' : stopped ? 'Stopped. Move the slider out of the middle, or press Play, to run time again.' : 'Paused. Play resumes at this speed.';
   const speed = $('speed');
   if (document.activeElement !== speed) speed.value = !state.playing && state.parked ? 0 : state.dir * (state.speed + NOTCH);
   speed.setAttribute('aria-valuetext', state.playing ? fmtRate(setRate()) : 'stopped, resumes at ' + fmtRate(setRate()));
@@ -537,8 +620,10 @@ function wire() {
   $('scaleMin').addEventListener('click', () => setScale(0));
   $('scaleMax').addEventListener('click', () => setScale(1));
   $('playBtn').addEventListener('click', () => setPlaying(!state.playing));
-  $('backBtn').addEventListener('click', () => setTime(state.simMs - DAY_MS));
-  $('fwdBtn').addEventListener('click', () => setTime(state.simMs + DAY_MS));
+  $('backBtn').addEventListener('click', () => stepTime(-1));
+  $('fwdBtn').addEventListener('click', () => stepTime(1));
+  $('stepBtn').addEventListener('click', () => setStep(STEPS[(STEPS.indexOf(step) + 1) % STEPS.length]));
+  setStep(step);
   $('nowBtn').addEventListener('click', () => setTime(Date.now()));
   $('speed').addEventListener('input', e => {
     const v = +e.target.value;
@@ -621,8 +706,8 @@ function wire() {
     switch (e.key) {
       // Space presses a button reached with the keyboard; after a click it is play/pause again
       case ' ': if ((tag === 'BUTTON' || tag === 'SUMMARY') && keyboardNav) { used = false; break; } setPlaying(!state.playing); break;
-      case ',': setTime(state.simMs - DAY_MS); break;
-      case '.': setTime(state.simMs + DAY_MS); break;
+      case ',': stepTime(-1); break;
+      case '.': stepTime(1); break;
       case '[': setSpeed(state.speed - 0.25); break;
       case ']': setSpeed(state.speed + 0.25); break;
       case 'r': case 'R': state.dir = -state.dir; break;
@@ -654,6 +739,8 @@ function wire() {
   // how their rows wrap
   const ctl = document.querySelector('.timectl');
   new ResizeObserver(() => { $('app').style.setProperty('--ctl-h', ctl.offsetHeight + 'px'); hudBoxes = null; }).observe(ctl);
+  // and the part of the screen the panels leave free changes with them
+  new ResizeObserver(() => { hudBoxes = null; wake(); }).observe($('info'));
 }
 
 // ---------------------------------------------------------------- start

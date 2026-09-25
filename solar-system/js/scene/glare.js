@@ -35,10 +35,11 @@ export class SunGlare {
         uniform vec2 uSun; uniform float uR; uniform float uPx; uniform float uHalo; uniform float uVis;
         void main() {
           vec2 q = (gl_FragCoord.xy - uSun) / uPx;
-          float r = length(q), x = r - uR;
-          // fade in over the last pixel of the limb instead of a hard edge
-          float outside = smoothstep(-0.5, 1.0, x);
-          x = max(x, 0.0);
+          // Full strength right up to the limb: the depth test already confines the glare to sky,
+          // per antialiasing sample, so a pixel on the edge blends the limb with the glare beside
+          // it. Fading the glare in there instead left those pixels darker than both, a dark ring
+          // (several device pixels wide on a phone).
+          float x = max(length(q) - uR, 0.0);
           // display values (added to the finished sRGB picture, so no colour-space conversion)
           // once the disc is large its limb is visibly darker (limb darkening): the rim of bloom must
           // stay below it, or it reads as a white outline
@@ -46,7 +47,7 @@ export class SunGlare {
           float halo = 0.25 * exp(-x / (8.0 + 0.8 * uR)) + 0.05 / (1.0 + pow(x / (40.0 + 2.0 * uR), 2.0));
           float a = atan(q.y, q.x) + 0.35;
           float spikes = 0.10 * pow(abs(cos(2.0 * a)), 600.0) * exp(-x / (40.0 + 3.0 * uR));
-          float I = (bloom + uHalo * (halo + spikes)) * outside * uVis;
+          float I = (bloom + uHalo * (halo + spikes)) * uVis;
           gl_FragColor = vec4(vec3(1.0, 0.96, 0.88) * I, 1.0);
         }`,
     });

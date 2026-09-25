@@ -10,6 +10,8 @@ import { Orbits } from './scene/orbits.js';
 import { Stars } from './scene/stars.js';
 import { View } from './scene/view.js';
 import { Labels } from './scene/labels.js';
+import { SunGlare } from './scene/glare.js';
+import { SUN_INTENSITY } from './scene/shaders.js';
 import { InfoPanel } from './ui/info.js';
 import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate, fmtRelative } from './ui/format.js';
 
@@ -19,14 +21,18 @@ const DAY_MS = 86400000;
 const MIN_MS = Date.UTC(1000, 0, 6), MAX_MS = Date.UTC(2999, 11, 31, 23, 59);
 const VALID_FROM = Date.UTC(1800, 0, 1), VALID_TO = Date.UTC(2051, 0, 1);
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The speed slider is signed and logarithmic: its value is ±(NOTCH + log10 |rate|), and the notch
+// in the middle, |value| < NOTCH, stops time. Just outside the notch runs at real time.
+const SPEED_MAX = 8.2, NOTCH = 0.7;
 
 // ---------------------------------------------------------------- state
 const state = {
   simMs: Date.now(),
   playing: !REDUCED_MOTION,
-  speed: Math.log10(86400),          // log10(simulated seconds per real second): 1 day per second
-  dir: 1,
-  show: { orbits: true, labels: true, moons: true, stars: true },
+  speed: 0,          // log10 |simulated seconds per real second|: 0 is real time
+  dir: 1,            // +1 forward, −1 backward
+  parked: false,     // stopped by the speed slider's notch (so the slider shows 0, not the last rate)
+  show: { orbits: true, labels: true, moons: true, stars: true, axis: true },
   scaleTarget: 0,
   selected: 'Sun',
 };
@@ -44,21 +50,22 @@ const DEFAULT_FOV = 45;
 
 // The Sun is the only light, so night sides are black, as a camera exposed for daylight sees them.
 // Decay 0 keeps distant worlds visible (see the guide).
-const sunLight = new THREE.PointLight(0xfff6ea, 3.4, 0, 0);
+const sunLight = new THREE.PointLight(0xfff6ea, SUN_INTENSITY, 0, 0);
 scene.add(sunLight);
 
 const grid = new THREE.PolarGridHelper(1, 12, 8, 128, 0x2a3346, 0x1b2130);
 grid.material.transparent = true; grid.material.depthWrite = false;
 scene.add(grid);
 
-const shared = { shGamma: { value: 1 }, nightOn: { value: 1 } };
+const shared = { nightOn: { value: 1 } };
 const scale = new DisplayScale();
 const bodies = new BodyViews(scene, renderer, shared);
 const orbits = new Orbits(scene);
 const stars = new Stars();
+const glare = new SunGlare();
 const view = new View(camera, renderer.domElement);
 const info = new InfoPanel();
-const labels = new Labels($('labels'), BODIES, name => select(name, true));
+const labels = new Labels($('labels'), BODIES, name => select(name, true), () => updateHover());
 
 // ---------------------------------------------------------------- display positions
 let snap = null, disp = {};
@@ -89,6 +96,8 @@ function mapOrbitPoint(name, relKm) {
 const drawnRadius = name => scale.size(meanRadius(BY_NAME[name]));
 const overviewDistance = () => 2.1 * scale.helio(30.1 * AU_KM);
 const focusDistance = name => name === 'Sun' ? overviewDistance() : drawnRadius(name) * 5;
+// largest drawn radius (equatorial, for flattened planets)
+const drawnExtent = name => { const d = BY_NAME[name]; return drawnRadius(name) * Math.max(...d.shape) / meanRadius(d); };
 
 // ---------------------------------------------------------------- selection and focus
 function select(name, fly) {
@@ -99,8 +108,11 @@ function select(name, fly) {
   paintList();
   if (fly) {
     camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
-    view.setFocus(name, disp, focusDistance(name));
+    // only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
+    const R = drawnExtent(name);
+    view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
   }
+  bodies.setAxis(name);
   hudDirty = true;
 }
 
@@ -140,10 +152,13 @@ function setTime(ms, { pause = false } = {}) {
   hudDirty = true;
   wake();
 }
-const rate = () => state.playing ? state.dir * Math.pow(10, state.speed) : 0;
+const setRate = () => state.dir * Math.pow(10, state.speed);   // the rate while playing
+const rate = () => state.playing ? setRate() : 0;
+function setSpeed(x) { state.speed = Math.max(0, Math.min(SPEED_MAX, +x.toFixed(2))); state.parked = false; hudDirty = true; }
+function setPlaying(on) { state.playing = on; if (on) state.parked = false; hudDirty = true; }
 
 // ---------------------------------------------------------------- main loop
-let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60;
+let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60, whenStaged = false;
 let hudBoxes = null, screenPos = [];
 // Render on demand: while time is paused and nobody interacts, nothing changes on screen, so an
 // idle page draws nothing (laptop and phone batteries). Input, loads and state changes wake it.
@@ -175,13 +190,11 @@ function frame(now) {
     if (k >= 1) scaleAnim = null;
   }
   computeDisplay();
-  const fd = BY_NAME[view.focus];
-  view.update(disp, drawnRadius(view.focus) * Math.max(...fd.shape) / meanRadius(fd), 3.2 * scale.helio(50 * AU_KM));
+  view.update(disp, drawnExtent(view.focus), 3.2 * scale.helio(50 * AU_KM));
   const origin = view.origin;
   // simulated time per rendered frame, for rotation blur and to hide bodies that would strobe
   const perFrame = rate() * frameDt;
   bodies.update(snap, disp, origin, scale, perFrame);
-  bodies.updateGlow(camera, stage.clientHeight);
   for (const def of BODIES) {
     const v = bodies.views[def.name];
     const isMoon = def.parent && def.parent !== 'Sun';
@@ -200,7 +213,7 @@ function frame(now) {
   grid.visible = grid.material.opacity > 0.01;
 
   stars.setEpoch((snap.tt) / 365.25);
-  stars.points && (stars.points.visible = state.show.stars);
+  stars.visible = state.show.stars;
 
   // labels (and screen positions for picking)
   const W = stage.clientWidth, H = stage.clientHeight;
@@ -216,16 +229,26 @@ function frame(now) {
   });
   screenPos = labels.update(camera, W, H, entries.filter(e => !e.isMoon || moonSpread(e)), hudBoxes, state.selected);
   for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false, labels.items[e.name].ring.style.display = 'none';
+  updateHover();
+  // the selected body's spin axis, once the body is big enough on screen for it to mean anything
+  const sp = screenPos.find(p => p.name === state.selected);
+  bodies.axis.visible = state.show.axis && bodies.views[state.selected].group.visible && !!sp && sp.rpx > 5;
 
   bodies.loadVisible(camera, H);
   // swap in the high-resolution Earth when it fills the screen
   const se = screenPos.find(s => s.name === 'Earth');
   if (se && se.onScreen && se.rpx > 350) bodies.upgrade('Earth');
 
+  const sunV = bodies.views.Sun;
+  glare.update(camera, sunV.group.position, sunV.R, W, H, renderer.getPixelRatio(),
+    BODIES.filter(d => d.parent).map(d => { const v = bodies.views[d.name]; return { pos: v.group.position, R: v.R, visible: v.group.visible }; }));
+  stars.setGlare(glare.on ? 0.75 * glare.vis * glare.halo : 0, glare.dir);
+
   renderer.clear();
   stars.render(renderer, camera, renderer.getPixelRatio());
   renderer.clearDepth();
   renderer.render(scene, camera);
+  glare.render(renderer);
 
   if (hudDirty || now - lastHud > 125) { lastHud = now; hudDirty = false; updateHud(); }
 }
@@ -238,32 +261,76 @@ function moonSpread(e) {
   return px > 26 || e.name === state.selected;
 }
 
+// ---------------------------------------------------------------- picking and hover
+// the body whose drawn disc (or a generous halo around tiny ones) is under a screen point, nearest first
+function pick(x, y) {
+  let best = null;
+  for (const s of screenPos) {
+    if (!s.onScreen || !bodies.views[s.name].group.visible) continue;
+    const d = Math.hypot(s.px - x, s.py - y), reach = Math.max(s.rpx, 12);
+    if (d < reach && (!best || s.dist < best.dist)) best = s;
+  }
+  return best;
+}
+let pointer = null, hovered = null;
+const hoverRing = $('hoverRing');
+function updateHover() {
+  const name = labels.hover || (pointer && pick(...pointer) || {}).name || null;
+  const s = name && screenPos.find(p => p.name === name);
+  if (name !== hovered) { hovered = name; renderer.domElement.style.cursor = pointer && name ? 'pointer' : ''; }
+  // a thin ring just outside the drawn disc; bodies larger than the screen need none
+  if (!s || !s.onScreen || s.rpx > stage.clientHeight * 0.45) { hoverRing.classList.remove('on'); return; }
+  const r = Math.max(s.rpx + 5, 11);
+  hoverRing.style.transform = `translate(${s.px - r}px, ${s.py - r}px)`;
+  hoverRing.style.width = hoverRing.style.height = 2 * r + 'px';
+  hoverRing.style.borderColor = `color-mix(in oklab, ${BY_NAME[name].color} 55%, white)`;
+  hoverRing.classList.add('on');
+}
+
 // ---------------------------------------------------------------- HUD
-const timeEls = { clock: $('clock'), date: $('date'), rel: $('rel'), tz: $('tzLabel'), ut: $('ut'), badge: $('badge') };
+// The clock shows local time, UTC, or UTC with the astronomical time scales ("scientific").
+// The model takes UTC to be UT1 (they never differ by more than 0.9 s).
+const TIME_MODES = ['Local', 'UTC', 'Scientific'];
+let timeMode = 'Local';
+try { const m = localStorage.getItem('solarSystem.timeMode'); if (TIME_MODES.includes(m)) timeMode = m; } catch {}
+function setTimeMode(m) {
+  timeMode = m;
+  try { localStorage.setItem('solarSystem.timeMode', m); } catch {}
+  $('timeMode').textContent = m;
+  $('timeDetails').hidden = m !== 'Scientific';
+  hudBoxes = null; hudDirty = true; wake();
+}
+const timeEls = { clock: $('clock'), date: $('date'), rel: $('rel'), tz: $('tzLabel'), badge: $('badge') };
+const dayTag = n => n ? `<span class="dtag" title="${n > 0 ? 'the next' : 'the previous'} day">${n > 0 ? '+' : '−'}${Math.abs(n)} d</span>` : '';
 function updateHud() {
-  const d = new Date(state.simMs);
-  timeEls.clock.textContent = fmtTime(d);
-  timeEls.date.textContent = fmtDate(d);
-  timeEls.tz.textContent = 'Local time · ' + tzName(d) + (civil(d).julian ? ' · Julian calendar' : '');
+  const d = new Date(state.simMs), utc = timeMode !== 'Local';
+  timeEls.clock.textContent = fmtTime(d, utc);
+  timeEls.date.textContent = fmtDate(d, utc);
+  const julian = civil(d, utc).julian ? 'Julian calendar' : '';
+  timeEls.tz.textContent = [timeMode === 'Local' ? tzName(d) : timeMode === 'Scientific' ? 'UTC' : '', julian].filter(Boolean).join(' · ');
   timeEls.rel.textContent = fmtRelative(state.simMs - Date.now());
-  timeEls.ut.textContent = 'UT ' + fmtTime(d, true, false) + (d.getUTCDate() !== d.getDate() ? ' (' + fmtDate(d, true) + ')' : '');
-  const valid = state.simMs >= VALID_FROM && state.simMs < VALID_TO;
-  timeEls.badge.textContent = valid ? 'Validated 1800–2050' : 'Extrapolated';
-  timeEls.badge.className = 'chip ' + (valid ? 'ok' : 'warn');
-  if (!$('timeDetails').hidden && snap) {
-    $('tdUT').textContent = fmtDate(d, true) + ' ' + fmtTime(d, true);
-    const tt = new Date(state.simMs + snap.deltaT * 1000);
-    $('tdTT').textContent = fmtDate(tt, true) + ' ' + fmtTime(tt, true);
+  // nothing to say while inside the validated range
+  timeEls.badge.hidden = state.simMs >= VALID_FROM && state.simMs < VALID_TO;
+  if (timeMode === 'Scientific' && snap) {
+    $('tdUT').textContent = fmtTime(d, true);
+    // TT runs about a minute ahead of UT, so near midnight it is already on the next day
+    const ttMs = state.simMs + snap.deltaT * 1000;
+    $('tdTT').innerHTML = fmtTime(new Date(ttMs), true) + dayTag(Math.floor(ttMs / DAY_MS) - Math.floor(state.simMs / DAY_MS));
     const dtNote = state.simMs > DT_MEASURED_UNTIL ? ' (predicted)' : state.simMs < Date.UTC(1657, 0, 1) ? ' (estimated from historical eclipses)' : ' (measured)';
     $('tdDT').textContent = snap.deltaT.toFixed(1) + ' s' + dtNote;
     $('tdJD').textContent = (snap.tt + 2451545).toFixed(5);
   }
   const when = $('when');
-  if (document.activeElement !== when) when.value = localInput(d);
+  if (!whenStaged && document.activeElement !== when) when.value = localInput(d);
   $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
-  $('rate').textContent = state.playing ? fmtRate(state.dir * Math.pow(10, state.speed)) : 'paused';
-  if (document.activeElement !== $('speed')) $('speed').value = state.speed;
-  $('dirBtn').setAttribute('aria-pressed', state.dir < 0);
+  // the rate stays visible while paused (dimmed): it is what Play resumes at
+  const rateEl = $('rate');
+  rateEl.textContent = fmtRate(setRate());
+  rateEl.classList.toggle('paused', !state.playing);
+  rateEl.title = state.playing ? 'Simulation speed' : 'Paused. Play resumes at this speed.';
+  const speed = $('speed');
+  if (document.activeElement !== speed) speed.value = !state.playing && state.parked ? 0 : state.dir * (state.speed + NOTCH);
+  speed.setAttribute('aria-valuetext', state.playing ? fmtRate(setRate()) : 'stopped, resumes at ' + fmtRate(setRate()));
   if (snap) info.update(snap);
 }
 
@@ -324,7 +391,8 @@ function openEvents(more = false) {
 function jumpToEvent(e) {
   setTime(e.date.getTime(), { pause: true });
   // a playback rate at which the event takes tens of seconds instead of passing in one frame
-  state.speed = Math.log10({ solar: 120, lunar: 600, transit: 600 }[e.kind]);
+  setSpeed(Math.log10({ solar: 120, lunar: 600, transit: 600 }[e.kind]));
+  state.dir = 1;
   snap = snapshot(state.simMs);
   setScale(1, false);
   computeDisplay();
@@ -337,19 +405,19 @@ function jumpToEvent(e) {
     const hit = disc >= 0 ? ax.clone().multiplyScalar(b - Math.sqrt(disc)) : ax.clone().multiplyScalar(b);
     const dir = hit.sub(earth).normalize();
     select('Earth', false);
-    view.follow = true; paintToggles();
-    view.setFocus('Earth', disp, drawnRadius('Earth') * 2.6, { dir });
+    view.lock = true; paintToggles();
+    view.setFocus('Earth', disp, { dist: drawnRadius('Earth') * 2.6, dir });
   } else if (e.kind === 'lunar') {
     // view the Moon from the Earth side, where it is seen during the eclipse
     const dir = P('Earth').sub(P('Moon')).normalize();
     select('Moon', false);
-    view.follow = true; paintToggles();
-    view.setFocus('Moon', disp, drawnRadius('Moon') * 5, { dir: dir.add(new THREE.Vector3(0, 0.25, 0)).normalize() });
+    view.lock = true; paintToggles();
+    view.setFocus('Moon', disp, { dist: drawnRadius('Moon') * 5, dir: dir.add(new THREE.Vector3(0, 0.25, 0)).normalize() });
   } else {
     // a transit: telescope view from Earth toward the Sun
     const earth = P('Earth');
     select(e.sub, false);
-    view.setFocus('Sun', disp, 1, {});
+    view.setFocus('Sun', disp, { dist: 1 });
     view.tween = null;
     const k = scale.helio(earth.length()) / earth.length();
     camera.position.copy(earth.multiplyScalar(k * 0.9995));
@@ -373,6 +441,7 @@ function shareUrl() {
     scale: scale.s.toFixed(3), speed: state.speed.toFixed(2), play: state.playing ? 1 : 0,
     cam: [off.x, off.y, off.z].map(x => +x.toPrecision(5)).join(','),
   });
+  if (state.dir < 0) q.set('dir', -1);
   if (camera.fov !== DEFAULT_FOV) q.set('fov', +camera.fov.toPrecision(4));
   return location.origin + location.pathname + '#' + q.toString();
 }
@@ -381,7 +450,9 @@ function readUrl() {
   const t = Date.parse(q.get('t') || '');
   if (!Number.isNaN(t)) setTime(t);
   const num = k => q.has(k) && Number.isFinite(+q.get(k)) ? +q.get(k) : null;
-  if (num('speed') !== null) state.speed = Math.max(0, Math.min(8.2, num('speed')));
+  // speed: log10 |rate|; links from before the signed slider have no `dir` and ran forward
+  if (num('speed') !== null) state.speed = Math.max(0, Math.min(SPEED_MAX, num('speed')));
+  state.dir = num('dir') === -1 ? -1 : 1;
   if (q.has('play')) state.playing = q.get('play') === '1';
   if (num('scale') !== null) setScale(num('scale'), false);
   const focus = q.get('focus');
@@ -393,7 +464,7 @@ function paintToggles() {
   wake();
   for (const b of document.querySelectorAll('[data-toggle]')) {
     const k = b.dataset.toggle;
-    const on = k === 'follow' ? view.follow : k === 'penumbra' ? shared.shGamma.value < 1 : state.show[k];
+    const on = k === 'lock' ? view.lock : state.show[k];
     b.setAttribute('aria-pressed', on);
   }
 }
@@ -410,8 +481,8 @@ function wire() {
 
   for (const b of document.querySelectorAll('[data-toggle]')) b.addEventListener('click', () => {
     const k = b.dataset.toggle;
-    if (k === 'follow') view.follow = !view.follow;
-    else if (k === 'penumbra') shared.shGamma.value = shared.shGamma.value < 1 ? 1 : 0.45;
+    // re-locking brings the camera back onto the body it drifted away from
+    if (k === 'lock') { view.lock = !view.lock; if (view.lock) view.glide(); }
     else state.show[k] = !state.show[k];
     if (k === 'moons') paintList();
     paintToggles();
@@ -419,22 +490,44 @@ function wire() {
   $('scale').addEventListener('input', e => setScale(+e.target.value, false));
   $('scaleMin').addEventListener('click', () => setScale(0));
   $('scaleMax').addEventListener('click', () => setScale(1));
-  $('playBtn').addEventListener('click', () => { state.playing = !state.playing; hudDirty = true; });
-  $('dirBtn').addEventListener('click', () => { state.dir = -state.dir; hudDirty = true; });
+  $('playBtn').addEventListener('click', () => setPlaying(!state.playing));
   $('backBtn').addEventListener('click', () => setTime(state.simMs - DAY_MS));
   $('fwdBtn').addEventListener('click', () => setTime(state.simMs + DAY_MS));
   $('nowBtn').addEventListener('click', () => setTime(Date.now()));
-  $('speed').addEventListener('input', e => { state.speed = +e.target.value; hudDirty = true; });
-  $('slowBtn').addEventListener('click', () => { state.speed = Math.max(0, +(state.speed - 0.25).toFixed(2)); hudDirty = true; });
-  $('fastBtn').addEventListener('click', () => { state.speed = Math.min(8.2, +(state.speed + 0.25).toFixed(2)); hudDirty = true; });
-  $('when').addEventListener('change', e => {
-    const t = parseLocalInput(e.target.value);   // local time, Julian calendar before 1582
-    if (!Number.isNaN(t) && t >= MIN_MS && t <= MAX_MS) setTime(t);
+  $('speed').addEventListener('input', e => {
+    const v = +e.target.value;
+    if (Math.abs(v) < NOTCH) { state.playing = false; state.parked = true; }
+    else {
+      // leaving the notch starts time again; a pause from the button stays a pause
+      const wasParked = state.parked;
+      state.dir = Math.sign(v); setSpeed(Math.abs(v) - NOTCH);
+      if (wasParked) state.playing = true;
+    }
+    hudDirty = true;
   });
-  $('timeMore').addEventListener('click', e => {
-    const box = $('timeDetails'); box.hidden = !box.hidden;
-    e.currentTarget.setAttribute('aria-expanded', !box.hidden); hudBoxes = null; hudDirty = true;
+  $('slowBtn').addEventListener('click', () => setSpeed(state.speed - 0.25));
+  $('fastBtn').addEventListener('click', () => setSpeed(state.speed + 0.25));
+
+  // the date field is a draft until confirmed with OK or Enter; Esc, or leaving it for something
+  // else, puts back the displayed time
+  const when = $('when'), whenOk = $('whenOk');
+  const draft = on => { whenStaged = on; $('whenForm').classList.toggle('staged', on); whenOk.disabled = !on; if (!on) hudDirty = true; };
+  when.addEventListener('input', () => draft(true));
+  when.addEventListener('change', () => draft(true));
+  $('whenForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const t = parseLocalInput(when.value);   // local time, Julian calendar before 1582
+    if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return; }
+    draft(false); setTime(t); when.blur();
   });
+  when.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); draft(false); when.blur(); }
+  });
+  // Focus moving to another control discards the draft, but a blur with nowhere to go does not:
+  // on phones the native picker closes that way, and the draft must survive until OK is tapped.
+  when.addEventListener('blur', e => { if (e.relatedTarget && e.relatedTarget !== whenOk) draft(false); });
+  window.addEventListener('pointerdown', e => { if (whenStaged && !e.target.closest('#whenForm')) draft(false); }, true);
+  $('timeMode').addEventListener('click', () => setTimeMode(TIME_MODES[(TIME_MODES.indexOf(timeMode) + 1) % TIME_MODES.length]));
   $('badge').addEventListener('click', () => { openSheet('guide'); $('guide').querySelector('table').scrollIntoView({ block: 'center' }); });
   $('eventsBtn').addEventListener('click', () => openEvents(false));
   $('evMore').addEventListener('click', () => openEvents(true));
@@ -453,20 +546,23 @@ function wire() {
     e.currentTarget.setAttribute('aria-expanded', r.classList.contains('open')); hudBoxes = null;
   });
 
-  // click on the canvas: pick the body whose drawn disc (or a generous halo around tiny ones) is nearest
+  // click on the canvas: pick the body under the pointer
   let down = null;
-  renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
-  renderer.domElement.addEventListener('pointerup', e => {
+  const cv = renderer.domElement;
+  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  cv.addEventListener('pointerup', e => {
     if (!down || Math.abs(e.clientX - down[0]) + Math.abs(e.clientY - down[1]) > 5) return;
-    const r = renderer.domElement.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    let best = null;
-    for (const s of screenPos) {
-      if (!s.onScreen || !bodies.views[s.name].group.visible) continue;
-      const d = Math.hypot(s.px - x, s.py - y), reach = Math.max(s.rpx, 12);
-      if (d < reach && (!best || s.dist < best.dist)) best = { ...s };
-    }
+    const r = cv.getBoundingClientRect(), best = pick(e.clientX - r.left, e.clientY - r.top);
     if (best) select(best.name, true);
   });
+  // hover: a faint ring and a pointer cursor say that bodies can be clicked
+  cv.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || e.buttons) { pointer = null; updateHover(); return; }
+    const r = cv.getBoundingClientRect();
+    pointer = [e.clientX - r.left, e.clientY - r.top];
+    updateHover();
+  }, { passive: true });
+  cv.addEventListener('pointerleave', () => { pointer = null; updateHover(); });
 
   window.addEventListener('keydown', e => {
     const tag = e.target.tagName;
@@ -475,16 +571,20 @@ function wire() {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     let used = true;
     switch (e.key) {
-      case ' ': if (tag === 'BUTTON' || tag === 'SUMMARY') { used = false; break; } state.playing = !state.playing; break;
+      case ' ': if (tag === 'BUTTON' || tag === 'SUMMARY') { used = false; break; } setPlaying(!state.playing); break;
       case ',': setTime(state.simMs - DAY_MS); break;
       case '.': setTime(state.simMs + DAY_MS); break;
-      case '[': state.speed = Math.max(0, state.speed - 0.25); break;
-      case ']': state.speed = Math.min(8.2, state.speed + 0.25); break;
+      case '[': setSpeed(state.speed - 0.25); break;
+      case ']': setSpeed(state.speed + 0.25); break;
       case 'r': case 'R': state.dir = -state.dir; break;
       case 'n': case 'N': setTime(Date.now()); break;
       case 't': case 'T': setScale(scale.s < 0.5 ? 1 : 0); break;
       case 'Escape':
-        if (!document.querySelector('.sheet:not([hidden])')) { camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix(); select('Sun', true); }
+        if (!document.querySelector('.sheet:not([hidden])')) {
+          camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
+          select('Sun', false);
+          view.setFocus('Sun', disp, { dist: overviewDistance() });
+        }
         closeSheets(); break;
       default: used = false;
     }
@@ -506,13 +606,14 @@ function wire() {
 // ---------------------------------------------------------------- start
 buildList();
 wire();
+setTimeMode(timeMode);
 const fromUrl = readUrl();
 snap = snapshot(state.simMs);
 computeDisplay();
 camera.position.set(0, 0.42, 1).normalize().multiplyScalar(overviewDistance());
 select(fromUrl.sel || 'Sun', false);
 if (fromUrl.focus) {
-  view.setFocus(fromUrl.focus, disp, focusDistance(fromUrl.focus), { ms: 1 });
+  view.setFocus(fromUrl.focus, disp, { dist: focusDistance(fromUrl.focus), ms: 1 });
   if (fromUrl.cam.length === 3 && fromUrl.cam.every(Number.isFinite)) {
     view.tween = null;
     view.controls.target.set(0, 0, 0);
@@ -533,6 +634,6 @@ function look(name, dir = 'sun', k = 5) {
   const me = new THREE.Vector3(...toScene(snap.bodies[name].pos));
   let d = dir === 'sun' ? me.clone().negate().normalize() : new THREE.Vector3(...dir).normalize();
   if (dir === 'sun') d.add(new THREE.Vector3(0, 0.35, 0)).normalize();
-  view.setFocus(name, disp, drawnRadius(name) * k, { dir: d });
+  view.setFocus(name, disp, { dist: drawnRadius(name) * k, dir: d });
 }
-window.solarSystem = { look, state, view, scale, bodies, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };
+window.solarSystem = { look, state, view, scale, bodies, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };

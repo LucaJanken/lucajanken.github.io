@@ -24,13 +24,17 @@ uniform vec4 uOccPole[4];  // occluder pole (unit) and equatorial / polar radius
 uniform int uOccN;
 uniform int uAtmoIdx;
 uniform vec3 uAtmoLight;
-uniform float uShGamma;
 uniform float uRingOn;
 uniform vec3 uRingN;
 uniform float uRingIn;
 uniform float uRingOut;
 uniform sampler2D uRingTex;
 
+// Partial shadows are drawn a little darker than photometric, cov^0.7 instead of cov, because on a
+// screen a surface at half light still looks almost fully lit and the penumbra of a solar eclipse,
+// thousands of km across, would be invisible. Only the partial phase changes: where a shadow
+// begins (cov = 0) and the umbra (cov = 1) are exact, so eclipse geometry and timing are not affected.
+const float SH_GAMMA = 0.7;
 const float OM_W[${K}] = float[${K}](${LD_W.map(w => w.toFixed(8)).join(', ')});
 
 // overlap area of two discs of radii R, r at centre distance d (flat-sky, angles in radians)
@@ -84,7 +88,7 @@ vec3 omSunlight(vec3 p) {
     // atan2 of |cross| and dot keeps full precision for nearly aligned vectors, where acos(dot) fails
     float sep = atan(length(cross(nSi, nO)), dot(nSi, nO));
     if (sep >= aS + aO) continue;
-    float cov = pow(omCover(aS, aO, sep), uShGamma);
+    float cov = pow(omCover(aS, aO, sep), SH_GAMMA);
     // inside Earth's umbra the Moon is lit only by sunlight refracted through Earth's atmosphere,
     // which is reddened by Rayleigh scattering: the copper "blood moon"
     vec3 through = atmo ? uAtmoLight : vec3(0.0);
@@ -118,7 +122,6 @@ export function makeShadowUniforms() {
     uOccN: { value: 0 },
     uAtmoIdx: { value: -1 },
     uAtmoLight: { value: new THREE.Color(0.11, 0.030, 0.009) },
-    uShGamma: { value: 1.0 },
     uRingOn: { value: 0 },
     uRingN: { value: new THREE.Vector3(0, 1, 0) },
     uRingIn: { value: 0 },
@@ -330,32 +333,72 @@ export function ringMaterial(tex, planetShadow) {
 }
 
 // ---- thin atmosphere limb glow (Earth) --------------------------------------------------------
+//
+// Single Rayleigh scattering, per pixel, on the same scale as the ground's Lambert shading: radiance
+// E·(1 − e^(−τX))·P(θ)/4π, with τ the blue zenith optical depth and P = ¾(1 + cos²θ). X is the air
+// along the view ray in air masses: over the disc, the chord through the shell beyond the one air
+// mass the day map already shows; above the limb, that of an exponential atmosphere (scale height
+// 8 km) at the ray's tangent height, which keeps the limb a thin blue band instead of a white ring.
+// The sunlight E has itself crossed the atmosphere to the scattering point (Kasten & Young air mass,
+// the same extinction as the ground below), so the glow fades where the ground does, at the
+// terminator, instead of spreading into the night side; forward scattering lights a crescent's limb.
 
-export function atmosphereMaterial(color) {
+export const SUN_INTENSITY = 3.4;   // the scene's sunlight (irradiance at normal incidence)
+
+export function atmosphereMaterial(atmo, innerRatio) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide,
-    uniforms: { uSunDir: { value: new THREE.Vector3(1, 0, 0) }, uColor: { value: new THREE.Color(...color) } },
+    uniforms: {
+      uSunDir: { value: new THREE.Vector3(1, 0, 0) },
+      uColor: { value: new THREE.Color(...atmo.color) },
+      uTau: { value: new THREE.Vector3(...atmo.tauZenith) },
+      uRin: { value: innerRatio },   // planet radius / shell radius
+      uHs: { value: 8 / atmo.heightKm },   // scale height / shell thickness
+      uXlimb: { value: Math.sqrt(2 * Math.PI * atmo.radiusKm / 8) },   // air masses along a ray grazing the ground
+    },
     vertexShader: /* glsl */`
       #include <common>
       #include <logdepthbuf_pars_vertex>
-      varying vec3 vN; varying vec3 vV; varying vec3 vWN;
+      uniform vec3 uSunDir;
+      varying vec3 vPos; varying vec3 vCam; varying vec3 vSun;
       void main() {
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz);
-        vWN = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * mv;
+        // work in the shell's own frame, where it is the unit sphere
+        vPos = position;
+        vCam = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
+        vSun = normalize(inverse(mat3(modelMatrix)) * uSunDir);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */`
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      uniform vec3 uSunDir; uniform vec3 uColor;
-      varying vec3 vN; varying vec3 vV; varying vec3 vWN;
+      uniform vec3 uColor; uniform vec3 uTau; uniform float uRin; uniform float uHs; uniform float uXlimb;
+      varying vec3 vPos; varying vec3 vCam; varying vec3 vSun;
       void main() {
         #include <logdepthbuf_fragment>
-        float rim = pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 4.0);
-        float lit = smoothstep(-0.25, 0.35, dot(vWN, uSunDir));
-        gl_FragColor = vec4(uColor * rim * lit * 0.9, 1.0);
+        vec3 d = normalize(vPos - vCam), sun = normalize(vSun);
+        vec3 pc = vCam - dot(vCam, d) * d;              // closest approach of the ray to the centre
+        float b2 = dot(pc, pc), r2 = uRin * uRin;
+        float hs = sqrt(max(1.0 - b2, 0.0));             // half chord through the shell sphere
+        float X, X0;
+        vec3 mid;
+        if (b2 < r2) {                                   // the ray ends on the ground
+          float hp = sqrt(r2 - b2);
+          X = (hs - hp) / (1.0 - uRin); X0 = 1.0; mid = pc - d * 0.5 * (hs + hp);
+        } else {                                         // it passes above the limb
+          float hb = (sqrt(b2) - uRin) / (1.0 - uRin);  // tangent height, in shell thicknesses
+          X = uXlimb * exp(-hb / uHs); X0 = 0.0; mid = pc;
+        }
+        // sunlight at the scattering point, after its own path through the air
+        float cz = dot(normalize(mid), sun);
+        float z = degrees(acos(clamp(cz, 0.0, 1.0)));
+        float Xs = 1.0 / (max(cz, 0.0) + 0.50572 * pow(96.07995 - z, -1.6364));
+        vec3 light = exp(-uTau * (Xs - 1.0)) * smoothstep(-0.05, 0.02, cz);
+        float mu = dot(d, sun);                          // cosine of the scattering angle
+        float phase = 0.75 * (1.0 + mu * mu);
+        float scatter = 1.0 - exp(-uTau.b * max(X - X0, 0.0));
+        vec3 glow = ${SUN_INTENSITY.toFixed(2)} / (4.0 * PI) * uColor * scatter * light * phase;
+        gl_FragColor = vec4(glow, 1.0);
         #include <colorspace_fragment>
       }`,
   });

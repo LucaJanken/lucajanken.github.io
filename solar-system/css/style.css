@@ -45,11 +45,13 @@ a { color: oklch(0.80 0.11 230); }
 .date-row { display: flex; gap: 12px; align-items: baseline; margin-top: 4px; }
 .date { font: 400 15px/1.2 var(--mono); letter-spacing: 0.05em; color: var(--accent); }
 .rel { font: 400 11px/1 var(--mono); color: var(--text-3); }
-.ut-row { margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font: 400 11px/1.3 var(--mono); color: var(--text-2); }
+.time-head { display: flex; flex-wrap: wrap; gap: 6px 9px; align-items: center; min-height: 20px; }
 .chip { border: 1px solid var(--line); background: rgba(255,255,255,0.03); padding: 4px 7px; font: 400 10px/1 var(--mono); letter-spacing: 0.06em; color: var(--text-2); }
+.chip.mode { letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-2); }
 .chip.warn { border-color: oklch(0.75 0.14 60 / 0.6); color: oklch(0.85 0.12 70); }
-.chip.ok { border-color: oklch(0.75 0.12 150 / 0.45); color: oklch(0.86 0.1 150); }
 button.chip:hover { border-color: var(--line-strong); }
+/* the day a secondary time scale is on, relative to the clock's (static: no fading, no reflow) */
+.dtag { display: inline-block; margin-left: 7px; padding: 0 4px; border: 1px solid var(--line); font-size: 10px; color: var(--accent-text); }
 .time-details { margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font: 400 11px/1.35 var(--mono); color: var(--text-2); max-width: 320px; }
 .time-details span:nth-child(odd) { color: var(--text-3); }
 
@@ -102,12 +104,28 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
 .timectl { right: var(--gap); bottom: var(--gap); width: 380px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; align-items: center; gap: 6px; }
 .row.between { justify-content: space-between; }
+.when { display: flex; gap: 6px; flex: 1; min-width: 0; margin: 0; }
 .timectl input[type=datetime-local] { border: 1px solid var(--line); background: rgba(255,255,255,0.03); font: 400 11px/1 var(--mono); padding: 7px 7px; color-scheme: dark; min-width: 0; flex: 1; }
+/* an edited date waits for OK */
+.when.staged input[type=datetime-local] { border-color: oklch(0.84 0.13 78 / 0.6); color: var(--accent-text); }
+.when.staged .btn { border-color: oklch(0.84 0.13 78 / 0.5); background: var(--accent-soft); color: var(--accent-text); }
+.btn:disabled { cursor: default; color: var(--text-3); opacity: 0.55; }
+.btn:disabled:hover { border-color: var(--line); }
 .btn { border: 1px solid var(--line); background: rgba(255,255,255,0.03); padding: 9px 10px; font: 400 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
 .btn:hover { border-color: var(--line-strong); }
 .btn.primary { border-color: oklch(0.84 0.13 78 / 0.5); background: var(--accent-soft); color: var(--accent-text); min-width: 84px; }
 .btn[aria-pressed="true"] { border-color: oklch(0.84 0.13 78 / 0.5); background: var(--accent-soft); color: var(--accent-text); }
-.rate { min-width: 136px; text-align: right; font: 400 11px/1 var(--mono); color: var(--text-2); }
+.rate { min-width: 136px; text-align: right; font: 400 11px/1 var(--mono); color: var(--text-2); display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+/* paused: the rate stays readable, dimmed, after a small pause glyph */
+.rate.paused { color: var(--text-3); }
+.rate.paused::before { content: ''; width: 6px; height: 8px; flex: none; border: solid var(--text-3); border-width: 0 2px; box-sizing: border-box; }
+.speed-box { display: flex; flex-direction: column; gap: 1px; }
+.speed-box input[type=range] { flex: 1; min-width: 0; }
+/* centre notch of the signed speed slider */
+#speed::-webkit-slider-runnable-track { background: linear-gradient(90deg, transparent calc(50% - 4px), rgba(255,255,255,0.5) calc(50% - 4px) calc(50% + 4px), transparent calc(50% + 4px)) center / 100% 6px no-repeat, linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.25)) center / 100% 2px no-repeat; height: 6px; }
+#speed::-webkit-slider-thumb { margin-top: -3.5px; }
+#speed::-moz-range-track { background: linear-gradient(90deg, transparent calc(50% - 4px), rgba(255,255,255,0.5) calc(50% - 4px) calc(50% + 4px), transparent calc(50% + 4px)) center / 100% 6px no-repeat, linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.25)) center / 100% 2px no-repeat; height: 6px; }
+.speed-ends { display: flex; justify-content: space-between; padding: 0 44px; font: 400 9px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
 
 /* ---- popovers ---- */
 .sheet { position: absolute; z-index: 5; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 32px)); max-height: min(78vh, 720px); overflow-y: auto; padding: 18px 20px 20px; background: rgba(9, 11, 19, 0.94); border: 1px solid var(--line-strong); }
@@ -130,6 +148,8 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
 .lbl { position: absolute; left: 0; top: 0; display: none; pointer-events: auto; border: 0; padding: 2px 5px; border-radius: 2px; background: rgba(4, 5, 10, 0.5); font: 400 10px/14px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; opacity: 0.8; will-change: transform; }
 .lbl:hover, .lbl.sel { opacity: 1; background: rgba(4, 5, 10, 0.78); }
 .lbl-moon { font-size: 9px; }
+.hover-ring { position: absolute; left: 0; top: 0; border: 1px solid; border-radius: 50%; opacity: 0; pointer-events: none; transition: opacity 0.15s; box-shadow: 0 0 6px rgba(255,255,255,0.12), inset 0 0 6px rgba(255,255,255,0.08); }
+.hover-ring.on { opacity: 0.55; }
 .loc { position: absolute; left: 0; top: 0; width: 10px; height: 10px; border: 1px solid; border-radius: 50%; opacity: 0.7; display: none; pointer-events: none; will-change: transform; }
 
 #toast { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); padding: 8px 12px; background: rgba(9,11,19,0.9); border: 1px solid var(--line-strong); font: 400 11px/1.3 var(--mono); color: var(--text); opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }

@@ -1,11 +1,19 @@
 // The real sky: the 9,096 stars of the Yale Bright Star Catalogue (BSC5, everything down to
 // about magnitude 6.5, i.e. what the naked eye can see), with proper motion applied for the
-// displayed date. Rendered at infinity in a separate pass, so they never show parallax or get
-// clipped, and brightness and colour follow magnitude and B−V index.
+// displayed date, over the diffuse light of the Milky Way. Rendered at infinity in a separate pass,
+// so they never show parallax or get clipped, and brightness and colour follow magnitude and B−V
+// index.
+//
+// The Milky Way is NASA SVS's "Deep Star Maps 2020" background (Hipparcos-2, Tycho-2 and Gaia DR2
+// with the Hipparcos and Tycho stars left out, so the catalogue's stars are not counted twice): an
+// equirectangular map in J2000 right ascension and declination, centred on 0h with RA increasing
+// to the left, tone mapped to sRGB with the 99.9th percentile at white. It includes the Magellanic
+// Clouds and the Andromeda galaxy.
 
 import * as THREE from '../../vendor/three.min.js';
 import { eqjToEcl } from '../astro/ephemeris.js';
 import { toScene } from './scale.js';
+import { ADD_KEEP_ALPHA } from './glare.js';
 
 // B−V colour index → approximate sRGB, through effective temperature (Ballesteros 2012) and a
 // Planck-curve fit (Tanner Helland), then desaturated: the eye sees star colours only faintly
@@ -20,11 +28,20 @@ function bvToRgb(bv) {
   return c.map(x => m + (x - m) * 0.55);
 }
 
+// scene direction → J2000 equatorial: the rows are the equatorial axes expressed in the scene
+function sceneToEquatorial() {
+  const r = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => toScene(eqjToEcl(e)));
+  return new THREE.Matrix3().set(...r[0], ...r[1], ...r[2]);
+}
+
 export class Stars {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
     this.epochYear = null;
+    this.visible = true;
+    this.glare = { uDim: { value: 0 }, uSunDir: { value: new THREE.Vector3(1, 0, 0) } };
+    this.milkyWay();
     this.ready = fetch('data/stars.bin').then(r => r.arrayBuffer()).then(buf => this.build(buf)).catch(e => console.warn('stars', e));
   }
 
@@ -46,17 +63,20 @@ export class Stars {
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
     geo.setAttribute('aMag', new THREE.BufferAttribute(mag, 1));
     geo.setAttribute('aCol', new THREE.BufferAttribute(col, 3));
-    this.uniforms = { uPx: { value: 1 }, uGain: { value: 1 } };
+    // uDim: how much the Sun's glare, when it is in view, drowns the stars (most of all near it)
+    this.uniforms = { uPx: { value: 1 }, uGain: { value: 1 }, ...this.glare };
     const mat = new THREE.ShaderMaterial({
-      uniforms: this.uniforms, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+      uniforms: this.uniforms, transparent: true, depthWrite: false, depthTest: false, ...ADD_KEEP_ALPHA,
       vertexShader: /* glsl */`
         attribute float aMag; attribute vec3 aCol;
-        uniform float uPx; uniform float uGain;
+        uniform float uPx; uniform float uGain; uniform float uDim; uniform vec3 uSunDir;
         varying vec3 vCol; varying float vA;
         void main() {
           // perceived size grows slowly with flux; faint stars stay 1 px and fade instead
           float s = clamp(5.2 - 0.62 * aMag, 1.0, 8.0);
-          vA = clamp(1.15 - 0.16 * aMag, 0.18, 1.0) * uGain;
+          float ang = acos(clamp(dot(normalize(position), uSunDir), -1.0, 1.0));
+          float glare = uDim * (0.4 + 0.6 * exp(-ang / 0.2));
+          vA = clamp(1.15 - 0.16 * aMag, 0.18, 1.0) * uGain * (1.0 - glare);
           vCol = aCol;
           gl_PointSize = s * uPx;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -89,13 +109,48 @@ export class Stars {
     this.points.geometry.attributes.position.needsUpdate = true;
   }
 
+  // faint and behind the stars: the brightest star clouds come out at about 13% grey
+  milkyWay() {
+    const tex = new THREE.TextureLoader().load('textures/milky_way.jpg');
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    // always magnified at sensible fields of view, and mipmaps would draw a seam where RA wraps
+    tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uMap: { value: tex }, uToEq: { value: sceneToEquatorial() }, uGain: { value: 0.02 }, ...this.glare },
+      side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false, ...ADD_KEEP_ALPHA,
+      vertexShader: /* glsl */`
+        varying vec3 vDir;
+        void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */`
+        #include <common>
+        uniform sampler2D uMap; uniform mat3 uToEq; uniform float uGain; uniform float uDim; uniform vec3 uSunDir;
+        varying vec3 vDir;
+        void main() {
+          vec3 d = normalize(vDir), e = uToEq * d;
+          vec2 uv = vec2(fract(0.5 - atan(e.y, e.x) / (2.0 * PI)), 0.5 + asin(clamp(e.z, -1.0, 1.0)) / PI);
+          float ang = acos(clamp(dot(d, uSunDir), -1.0, 1.0));
+          vec3 c = texture2D(uMap, uv).rgb * uGain * (1.0 - uDim * (0.4 + 0.6 * exp(-ang / 0.2)));
+          gl_FragColor = vec4(c, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(4, 64, 32), mat);
+    this.sky.frustumCulled = false;
+    this.sky.renderOrder = -1;
+    this.scene.add(this.sky);
+  }
+
+  /** dim the sky for the Sun's glare: amount 0..1, direction of the Sun (world) */
+  setGlare(amount, dir) { this.glare.uDim.value = amount; this.glare.uSunDir.value.copy(dir); }
+
   render(renderer, mainCamera, pixelRatio) {
-    if (!this.points || !this.points.visible) return;
+    if (!this.visible) return;
     this.camera.quaternion.copy(mainCamera.quaternion);
     if (this.camera.fov !== mainCamera.fov || this.camera.aspect !== mainCamera.aspect) {
       this.camera.fov = mainCamera.fov; this.camera.aspect = mainCamera.aspect; this.camera.updateProjectionMatrix();
     }
-    this.uniforms.uPx.value = pixelRatio;
+    if (this.uniforms) this.uniforms.uPx.value = pixelRatio;
     renderer.render(this.scene, this.camera);
   }
 }

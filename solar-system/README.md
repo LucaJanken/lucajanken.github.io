@@ -3,6 +3,21 @@
 An interactive 3D model of the Solar System for any instant between the years 1000 and 3000.
 Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Pages serves it as-is.
 
+## Using it
+
+- Time starts at the present, running at real time. The speed slider is signed and logarithmic:
+  right runs forward, left backward, from real time next to the centre to years per second at the
+  ends; the notch in the middle stops time. Play/Pause keeps the chosen speed (shown dimmed while
+  paused), and `R` reverses it.
+- A typed date is a draft until OK or Enter; Esc puts back the displayed time.
+- The clock shows Local time, UTC, or Scientific (UTC with UT, TT, ΔT and the Julian Date); the
+  choice is remembered. An Extrapolated tag appears outside the validated 1800–2050.
+- Selecting a body glides the camera over to it without changing zoom or viewing angle (it only
+  backs off if it would end up inside the body). Lock keeps the camera travelling with the
+  selected body; locking again after drifting catches up with it. Axis shows its rotation axis.
+- The view state, including time, speed and direction, is kept in the URL by Share view
+  (`#t=…&speed=…&dir=-1…`; links without `dir` run forward).
+
 ## Layout
 
 ```
@@ -16,17 +31,19 @@ js/astro/       the physics, with no graphics:
 js/data/        bodies.js: physical data and descriptions, with sources
 js/scene/       three.js rendering
   scale.js        overview ↔ true-scale mapping; ecliptic → scene axes
-  bodies.js       meshes, materials, rings; per-frame update
+  bodies.js       meshes, materials, rings, spin axis; per-frame update
   shaders.js      eclipse and ring shadows, lunar-eclipse reddening, rotation blur, regolith
-                  photometry, the Sun's photosphere, rings
+                  photometry, the Sun's photosphere, rings, Earth's atmospheric glow
+  glare.js        the Sun's glare, drawn in screen space
   orbits.js       osculating orbits, stored relative to each body for precision
-  stars.js        Yale Bright Star Catalogue with proper motion
-  view.js         camera, floating origin, focus transitions
+  stars.js        Yale Bright Star Catalogue with proper motion, over the Milky Way
+  view.js         camera, floating origin, focus glides, lock
   labels.js       labels and locator rings
 js/ui/          information panel and formatting
 js/main.js      state, main loop, controls
 vendor/         three.js r186 (+ OrbitControls) and astronomy-engine 2.1.19, minified ES modules
 data/stars.bin  9,096 BSC5 stars: RA, Dec, V, B−V, proper motion (int16 each)
+textures/       maps, 2048 × 1024 unless noted; milky_way.jpg is equirectangular in J2000 RA/Dec
 tests/          accuracy checks against JPL Horizons and NASA's eclipse canon
 ```
 
@@ -65,5 +82,10 @@ npx esbuild node_modules/astronomy-engine/esm/astronomy.js --format=esm --minify
 ## Credits
 
 Astronomy Engine (Don Cross, MIT) · three.js (MIT) · JPL Horizons · NASA NAIF · USNO/IERS ·
-Yale Bright Star Catalogue (CDS) · planet maps from Solar System Scope (CC BY 4.0) · moon maps from USGS Astrogeology / NASA / JPL and
-Pluto from NASA / JHUAPL / SwRI (public domain) · IBM Plex (OFL).
+Yale Bright Star Catalogue (CDS) · Milky Way from NASA/GSFC Scientific Visualization Studio, Deep Star
+Maps 2020 (Hipparcos-2, Tycho-2, Gaia DR2: ESA/Gaia/DPAC) · planet maps from Solar System Scope
+(CC BY 4.0) · moon maps from USGS Astrogeology / NASA / JPL (Europa from the 500 m Voyager–Galileo
+mosaic) and Pluto from NASA / JHUAPL / SwRI (public domain) · IBM Plex (OFL).
+
+The Milky Way map was made from `milkyway_2020_4k.exr` (svs.gsfc.nasa.gov/4851): halved to
+2048 × 1024, a floor of 0.002 subtracted, the 99.9th percentile (0.4) scaled to white, sRGB-encoded.

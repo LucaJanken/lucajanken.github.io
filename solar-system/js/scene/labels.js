@@ -22,9 +22,10 @@ function occluded(cam, pos, self, spheres) {
 }
 
 export class Labels {
-  constructor(layer, bodies, onPick) {
+  constructor(layer, bodies, onPick, onHover = () => {}) {
     this.layer = layer;
     this.items = {};
+    this.hover = null;   // name of the body whose label the mouse is over
     for (const def of bodies) {
       const el = document.createElement('button');
       el.type = 'button';
@@ -33,6 +34,8 @@ export class Labels {
       // lightened so that dark body colours (Mars, Neptune) stay readable on the night sky
       el.style.color = `color-mix(in oklab, ${def.color} 72%, white)`;
       el.addEventListener('click', e => { e.stopPropagation(); onPick(def.name); });
+      el.addEventListener('pointerenter', () => { this.hover = def.name; onHover(); });
+      el.addEventListener('pointerleave', () => { if (this.hover === def.name) this.hover = null; onHover(); });
       const ring = document.createElement('div');
       ring.className = 'loc';
       ring.style.borderColor = def.color;

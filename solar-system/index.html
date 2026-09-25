@@ -12,22 +12,21 @@
 <body>
 <div id="app">
   <div id="stage" aria-label="3D view of the Solar System. Drag to rotate, scroll or pinch to zoom." role="img"></div>
-  <div id="labels"></div>
+  <div id="labels"><div class="hover-ring" id="hoverRing"></div></div>
 
   <header class="time" data-hud>
-    <div class="kicker" id="tzLabel">Local time</div>
+    <div class="time-head">
+      <button type="button" class="chip mode" id="timeMode" title="Switch the clock between local time, UTC and scientific time scales">Local</button>
+      <span class="kicker" id="tzLabel"></span>
+      <button type="button" class="chip warn" id="badge" hidden title="Outside 1800–2050 the positions are extrapolated. Click for details.">Extrapolated</button>
+    </div>
     <div class="clock" id="clock">--:--:--</div>
     <div class="date-row"><span class="date" id="date">loading…</span><span class="rel" id="rel"></span></div>
-    <div class="ut-row">
-      <span id="ut">UT --:--</span>
-      <button type="button" class="chip" id="timeMore" aria-expanded="false" title="Time scales and accuracy">TT · JD · ΔT</button>
-      <button type="button" class="chip ok" id="badge" title="How accurate is this?">Validated</button>
-    </div>
     <div class="time-details" id="timeDetails" hidden>
-      <span>UT</span><span id="tdUT"></span>
-      <span>TT</span><span id="tdTT"></span>
-      <span>ΔT</span><span id="tdDT"></span>
-      <span>JD (TT)</span><span id="tdJD"></span>
+      <span title="Universal Time, UT1: Earth's rotation angle as a time">UT</span><span id="tdUT"></span>
+      <span title="Terrestrial Time: the uniform time of the ephemeris">TT</span><span id="tdTT"></span>
+      <span title="TT − UT: how far Earth's rotation lags a uniform clock">ΔT</span><span id="tdDT"></span>
+      <span title="Julian Date in TT">JD (TT)</span><span id="tdJD"></span>
     </div>
   </header>
 
@@ -43,8 +42,8 @@
       <button type="button" class="tog" data-toggle="labels" aria-pressed="true">Labels</button>
       <button type="button" class="tog" data-toggle="moons" aria-pressed="true">Moons</button>
       <button type="button" class="tog" data-toggle="stars" aria-pressed="true">Stars</button>
-      <button type="button" class="tog" data-toggle="follow" aria-pressed="true" title="Keep the camera travelling with the selected body">Follow</button>
-      <button type="button" class="tog" data-toggle="penumbra" aria-pressed="false" title="Exaggerate faint partial shadows (not physical)">Boost shadow</button>
+      <button type="button" class="tog" data-toggle="lock" aria-pressed="true" title="Lock the camera to the selected body, so it travels with it">Lock</button>
+      <button type="button" class="tog" data-toggle="axis" aria-pressed="true" title="Show the selected body's rotation axis">Axis</button>
       <div class="scale-box">
         <div class="scale-ends"><button type="button" id="scaleMin">Overview</button><button type="button" id="scaleMax">True scale</button></div>
         <input type="range" id="scale" min="0" max="1" step="0.001" value="0" aria-label="Display scale, from overview to true scale">
@@ -65,7 +64,10 @@
 
   <section class="panel timectl" data-hud aria-label="Time controls">
     <div class="row between">
-      <input type="datetime-local" id="when" step="60" min="1000-01-01T00:00" max="2999-12-31T23:59" aria-label="Date and time (local)">
+      <form class="when" id="whenForm">
+        <input type="datetime-local" id="when" step="60" min="1000-01-01T00:00" max="2999-12-31T23:59" aria-label="Date and time (local)">
+        <button type="submit" class="btn" id="whenOk" disabled title="Go to this date (Enter)">OK</button>
+      </form>
       <button type="button" class="btn" id="nowBtn" title="Jump to the present (N)">Now</button>
     </div>
     <div class="row between">
@@ -74,13 +76,15 @@
         <button type="button" class="btn primary" id="playBtn" title="Play / pause (space)">Pause</button>
         <button type="button" class="btn" id="fwdBtn" title="Forward one day ( . )">1 d ▸</button>
       </div>
-      <button type="button" class="btn" id="dirBtn" aria-pressed="false" title="Run time backwards (R)">Reverse</button>
+      <div class="rate" id="rate" aria-live="off"></div>
     </div>
-    <div class="row">
-      <button type="button" class="btn" id="slowBtn" aria-label="Slower ( [ )">−</button>
-      <input type="range" id="speed" min="0" max="8.2" step="0.01" aria-label="Simulation speed">
-      <button type="button" class="btn" id="fastBtn" aria-label="Faster ( ] )">+</button>
-      <div class="rate" id="rate"></div>
+    <div class="speed-box">
+      <div class="row">
+        <button type="button" class="btn" id="slowBtn" aria-label="Slower ( [ )" title="Slower ( [ )">−</button>
+        <input type="range" id="speed" min="-8.9" max="8.9" step="0.01" aria-label="Simulation speed: left runs time backwards, right forwards, the middle stops it">
+        <button type="button" class="btn" id="fastBtn" aria-label="Faster ( ] )" title="Faster ( ] )">+</button>
+      </div>
+      <div class="speed-ends" aria-hidden="true"><span>◂ backward</span><span>stop</span><span>forward ▸</span></div>
     </div>
   </section>
 
@@ -100,8 +104,11 @@
     <h3>Getting around</h3>
     <ul>
       <li>Drag to rotate, scroll or pinch to zoom, right-drag, shift-drag or arrow keys to pan.</li>
-      <li>Click a body, its label, or its name in the list to fly to it. <b>Follow</b> keeps the camera travelling with it.</li>
-      <li><kbd>Space</kbd> play/pause · <kbd>,</kbd> <kbd>.</kbd> one day back/forward · <kbd>[</kbd> <kbd>]</kbd> slower/faster · <kbd>R</kbd> reverse · <kbd>N</kbd> now · <kbd>T</kbd> scale · <kbd>Esc</kbd> back to the overview.</li>
+      <li>Click a body, its label, or its name in the list to fly to it. The camera glides over without changing your zoom or viewing angle (it only backs off if it would end up inside the body). <b>Lock</b> keeps the camera travelling with the selected body; unlock it to let the body drift away, and lock again to catch up with it.</li>
+      <li>The speed slider runs time forward to the right and backward to the left, from real time next to the middle to years per second at the ends; the notch in the middle stops it. <b>Play</b> and <b>Pause</b> keep the chosen speed.</li>
+      <li>Type a date and press <b>OK</b> (or <kbd>Enter</kbd>) to go there; <kbd>Esc</kbd> puts back the current one.</li>
+      <li>The button above the clock switches it between <b>Local</b> time, <b>UTC</b>, and <b>Scientific</b>, which adds the astronomical time scales: UT (Earth’s rotation, UT1), TT (the uniform time the planets move by), ΔT = TT − UT and the Julian Date. The model takes UTC to be UT1; the two never differ by more than 0.9 s.</li>
+      <li><kbd>Space</kbd> play/pause · <kbd>,</kbd> <kbd>.</kbd> one day back/forward · <kbd>[</kbd> <kbd>]</kbd> slower/faster · <kbd>R</kbd> reverse the direction of time · <kbd>N</kbd> now · <kbd>T</kbd> scale · <kbd>Esc</kbd> back to the overview.</li>
     </ul>
 
     <h3>Scale</h3>
@@ -109,7 +116,7 @@
 
     <h3>Shadows and eclipses</h3>
     <p>Shadows are computed for every point on a surface from the true sizes and distances of the Sun and of the body in the way, including the Sun’s limb darkening and the light’s travel time (the sunlight hitting Earth passed the Moon 1.3 s earlier, which moves a solar eclipse 35 km along its track). They are therefore correct at every scale setting, even when the Moon is drawn closer than it really is. During a lunar eclipse the Moon turns copper-red, because the only light reaching it has been bent and reddened by Earth’s atmosphere. Saturn’s rings cast shadows on the planet and Saturn casts one on its rings. Jupiter’s moons cast theirs on Jupiter and disappear into its shadow, whose flattened shape is taken into account (it lengthens Io’s eclipses by three minutes).</p>
-    <p><b>Boost shadow</b> exaggerates faint partial shadows, which are real but hard to see. It is off by default.</p>
+    <p>One liberty: partial shadows are drawn somewhat darker than a light meter would record, because on a screen a surface at half light looks almost fully lit, and the Moon’s partial shadow, thousands of km across, would vanish. Where every shadow begins and ends, and the full shadow itself, are exact.</p>
 
     <h3>How accurate is it?</h3>
     <p>The positions were compared with NASA JPL’s DE440 ephemeris (via Horizons) over 1800–2050:</p>
@@ -121,11 +128,11 @@
       <tr><td>Titan · Phobos · Deimos</td><td>&lt; 900 km · 20 km · 56 km</td></tr>
       <tr><td>Solar eclipses (1919, 1999, 2024, 2027)</td><td>greatest eclipse within 5 km and 5 s of NASA’s canon</td></tr>
     </table>
-    <p>Outside 1800–2050 the planets stay good to about an arcminute for centuries. The moons of Mars and Saturn are extrapolated fits. Earth’s rotation depends on ΔT, the slowly growing lag of Earth’s rotation behind atomic time: the model uses the measured values (telescopic timings since 1657, atomic clocks since 1955) and the official prediction to 2033. Before 1657 ΔT is estimated from historical eclipse records and uncertain by minutes; beyond the 2030s it cannot be predicted well, so eclipse tracks can shift east–west by tens of km. The date badge says which regime you are in.</p>
+    <p>Outside 1800–2050 the planets stay good to about an arcminute for centuries. The moons of Mars and Saturn are extrapolated fits. Earth’s rotation depends on ΔT, the slowly growing lag of Earth’s rotation behind atomic time: the model uses the measured values (telescopic timings since 1657, atomic clocks since 1955) and the official prediction to 2033. Before 1657 ΔT is estimated from historical eclipse records and uncertain by minutes; beyond the 2030s it cannot be predicted well, so eclipse tracks can shift east–west by tens of km. Outside 1800–2050 an <b>Extrapolated</b> tag appears next to the clock.</p>
     <p>Dates before 15 October 1582 are in the Julian calendar, as in historical records and NASA’s eclipse canon. The Gregorian reform then skipped ten days.</p>
 
     <h3>What the picture shows</h3>
-    <p>The Sun is the only light, so night sides are black, as a camera exposed for daylight sees them; Earth’s night side shows its city lights. Distant worlds are brightened so they stay visible (Neptune receives 1/900 of the sunlight Earth does). The Sun is drawn as it looks in white light through a filter: a featureless disc, darker and redder toward its edge. The Moon and other dusty airless worlds scatter light back toward the Sun, so a full Moon is evenly bright to its edge instead of shading like a ball. Every moon turns according to the IAU rotation models, including the slight rocking (libration) that keeps the Moon from showing exactly the same face. Each orbit line is the ellipse the body would follow if nothing but its primary pulled on it, fitted to its motion at this instant. Earth’s is the path of the Earth–Moon pair’s centre of mass, which lies 4,700 km from Earth’s centre, inside the Earth: look closely and the line misses Earth’s centre. From Saturn outward the ellipses are drawn around the Solar System’s centre of mass, which the Sun itself circles because of Jupiter’s pull.</p>
+    <p>The Sun is the only light, so night sides are black, as a camera exposed for daylight sees them; Earth’s night side shows its city lights. Distant worlds are brightened so they stay visible (Neptune receives 1/900 of the sunlight Earth does). The Sun’s disc is drawn as it looks in white light through a filter: featureless, darker and redder toward its edge. Around it is the glare it would cause in an eye or a camera exposed for the planets, which drowns the nearby stars; it fades as the disc grows large, as it does in a close or telescope view. Behind the stars lies the faint glow of the Milky Way, with the Magellanic Clouds and the Andromeda galaxy. Earth’s atmosphere is a thin blue haze toward the limb, lit only where sunlight reaches it. The Moon and other dusty airless worlds scatter light back toward the Sun, so a full Moon is evenly bright to its edge instead of shading like a ball. Every moon turns according to the IAU rotation models, including the slight rocking (libration) that keeps the Moon from showing exactly the same face. Each orbit line is the ellipse the body would follow if nothing but its primary pulled on it, fitted to its motion at this instant. Earth’s is the ellipse of the Earth–Moon pair’s centre of mass (which lies 4,700 km from Earth’s centre, inside the Earth), drawn through Earth’s centre: Earth itself weaves a few thousand km to either side of it every month. From Saturn outward the ellipses are drawn around the Solar System’s centre of mass, which the Sun itself circles because of Jupiter’s pull.</p>
     <p>Some things are representative rather than exact: cloud patterns on Earth, Venus, Jupiter and the other giants are snapshots (Venus’s clouds do circle the planet every four days, as the real ones do), sunspots are not shown, and the fine structure of Saturn’s rings comes from an image whose opacity is scaled to measured values. Phobos and Deimos are drawn as ellipsoids of their true dimensions.</p>
 
     <h3>Sources and credits</h3>
@@ -133,9 +140,9 @@
       <li>Ephemerides: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross, MIT): VSOP87, Brown’s lunar theory (Improved Lunar Ephemeris), Lainey L1.2; satellite fits to <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a>.</li>
       <li>Rotation: IAU WGCCRE 2015 (Archinal et al. 2018), for the moons via NASA NAIF’s pck00011 kernel. ΔT: US Naval Observatory and IERS.</li>
       <li>Physics of the picture: lunar–Lambert photometry (McEwen 1991); Saturn’s ring optical depths (Colwell et al. 2009); Danjon’s rule for Earth’s shadow.</li>
-      <li>Stars: Yale Bright Star Catalogue, 5th ed. (Hoffleit &amp; Warren, via CDS).</li>
+      <li>Stars: Yale Bright Star Catalogue, 5th ed. (Hoffleit &amp; Warren, via CDS). Milky Way: <a href="https://svs.gsfc.nasa.gov/4851" target="_blank" rel="noopener">Deep Star Maps 2020</a>, NASA/Goddard Space Flight Center Scientific Visualization Studio, from Hipparcos-2, Tycho-2 and Gaia DR2 (ESA/Gaia/DPAC).</li>
       <li>Planet and Sun maps: <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> (CC BY 4.0), based on NASA data.</li>
-      <li>Io, Ganymede, Callisto, Europa, Phobos: USGS Astrogeology / NASA / JPL global mosaics (public domain). Pluto: NASA / JHUAPL / SwRI, New Horizons (public domain).</li>
+      <li>Io, Ganymede, Callisto, Europa, Phobos: USGS Astrogeology / NASA / JPL Voyager and Galileo global mosaics (public domain); Callisto’s patchwork look is the uneven coverage of those missions. Pluto: NASA / JHUAPL / SwRI, New Horizons (public domain).</li>
       <li>Rendering: <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT). Fonts: IBM Plex (OFL).</li>
     </ul>
   </div>

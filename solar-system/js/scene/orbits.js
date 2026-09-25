@@ -45,7 +45,11 @@ export class Orbits {
       const d = disp[name];
       L.line.position.set(d[0] - origin[0], d[1] - origin[1], d[2] - origin[2]);
       if (!L.line.visible) continue;
-      const os = orbitState(snap, name), off = os.offset;
+      const os = orbitState(snap, name);
+      // Earth's ellipse is that of the Earth–Moon barycentre; shifted by Earth's offset from it
+      // (≤ 4,700 km, the scale of the Moon's monthly tug) it runs through Earth's centre
+      const b = snap.bodies[name], off = name === 'Earth'
+        ? [b.pos[0] - os.pos[0], b.pos[1] - os.pos[1], b.pos[2] - os.pos[2]] : os.offset;
       const el = oscElements(os.pos, os.vel, os.mu);
       if (!(el.e < 1)) { L.line.visible = false; continue; }
       const arr = L.line.geometry.attributes.position.array;

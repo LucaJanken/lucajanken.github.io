@@ -74,11 +74,17 @@ export class BodyViews {
     this.scene = scene;
     this.loader = new THREE.TextureLoader();
     this.aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    this.shared = shared;   // { shGamma: {value}, nightOn: {value} }
+    this.shared = shared;   // { nightOn: {value} }
     this.onChange = () => {};   // called when something finishes loading
     this.views = {};
     for (const def of BODIES) this.views[def.name] = this.create(def);
+    this.axis = spinAxis();
+    scene.add(this.axis);
+    this.axisOf = null;
   }
+
+  /** draw the rotation axis of this body (null: none) */
+  setAxis(name) { this.axisOf = name; }
 
   tex(file, color = true, onLoad) {
     const t = this.loader.load(TEX_DIR + file, onLoad);
@@ -98,14 +104,10 @@ export class BodyViews {
     if (def.name === 'Sun') {
       v.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, ...seg), sunMaterial());
       orient.add(v.mesh);
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-      group.add(glow);
-      v.glow = glow;
-      return v;
+      return v;   // its glare is drawn in screen space (glare.js)
     }
 
     const u = makeShadowUniforms();
-    u.uShGamma = this.shared.shGamma;
     v.u = u;
     const t = def.tex || {};
     // maps load once the body is a few pixels across (loadVisible); until then its catalogue colour
@@ -129,7 +131,7 @@ export class BodyViews {
       orient.add(v.clouds);
     }
     if (def.atmosphere) {
-      v.atmo = new THREE.Mesh(new THREE.SphereGeometry(1, ...seg), atmosphereMaterial(def.atmosphere.color));
+      v.atmo = new THREE.Mesh(new THREE.SphereGeometry(1, ...seg), atmosphereMaterial({ ...def.atmosphere, radiusKm: def.shape[0] }, 1 / (1 + def.atmosphere.heightKm / def.shape[0])));
       orient.add(v.atmo);
     }
     if (def.rings) {
@@ -183,20 +185,6 @@ export class BodyViews {
     });
   }
 
-  /**
-   * The glow stands for the glare of an over-exposed Sun in a camera or eye, so it is sized on the
-   * screen, not in space: it marks the Sun while its disc is small and fades out once the disc
-   * itself is large (it used to wash out the whole telescope view of a transit).
-   */
-  updateGlow(camera, H) {
-    const v = this.views.Sun, d = camera.position.distanceTo(v.group.position);
-    const tanF = Math.tan(camera.fov * Math.PI / 360), rpx = v.R / Math.max(d, 1e-12) * (H / 2) / tanF;
-    const glowPx = Math.max(2.5 * rpx, 24);
-    v.glow.scale.setScalar(2 * glowPx / (H / 2) * tanF * d);
-    v.glow.material.opacity = Math.max(0, Math.min(1, (80 - rpx) / 60));
-    v.glow.visible = v.glow.material.opacity > 0.01;
-  }
-
   // swap in a higher-resolution map once a body fills much of the screen
   upgrade(name) {
     const v = this.views[name];
@@ -226,7 +214,12 @@ export class BodyViews {
       const R = scale.size(v.Rmean), k = R / v.Rmean;
       v.k = k; v.R = R;
       v.mesh.scale.set(def.shape[0] * k, def.shape[2] * k, def.shape[1] * k);
-      if (v.glow) continue;
+      if (name === this.axisOf) {
+        this.axis.position.copy(v.group.position);
+        this.axis.quaternion.copy(v.orient.quaternion);
+        this.axis.scale.setScalar(def.shape[2] * k);
+      }
+      if (!v.u) continue;   // the Sun
       if (v.clouds) v.clouds.scale.copy(v.mesh.scale).multiplyScalar(1.002);
       if (v.atmo) v.atmo.scale.copy(v.mesh.scale).multiplyScalar(1 + def.atmosphere.heightKm / def.shape[0]);
       if (v.rings) v.rings.scale.setScalar(def.shape[0] * k);
@@ -277,17 +270,17 @@ export class BodyViews {
   }
 }
 
-function glowTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d');
-  const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grd.addColorStop(0, 'rgba(255,240,210,0.9)');
-  grd.addColorStop(0.2, 'rgba(255,214,150,0.35)');
-  grd.addColorStop(0.5, 'rgba(255,180,90,0.08)');
-  grd.addColorStop(1, 'rgba(255,160,60,0)');
-  g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+// The spin axis through the poles, sticking out a little on both sides. The part inside the body is
+// hidden by the depth test. North (the pole of positive rotation, IAU) is the longer end.
+function spinAxis() {
+  const ends = [[-1.45, 0], [-1.0, 0.5], [1.0, 0.5], [1.7, 0]];   // [y in polar radii, opacity]
+  const pos = [], col = [];
+  for (let i = 0; i < ends.length - 1; i++) for (const [y, a] of [ends[i], ends[i + 1]]) { pos.push(0, y, 0); col.push(0.78, 0.84, 1.0, a); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  const line = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+  line.frustumCulled = false;
+  line.renderOrder = 1;
+  return line;
 }

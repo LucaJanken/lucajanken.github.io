@@ -38,7 +38,7 @@ js/scene/       three.js rendering
   orbits.js       osculating orbits, stored relative to each body for precision
   stars.js        Yale Bright Star Catalogue with proper motion, over the Milky Way
   view.js         camera, floating origin, focus glides, lock
-  labels.js       labels and locator rings
+  labels.js       labels
 js/ui/          information panel and formatting
 js/main.js      state, main loop, controls
 vendor/         three.js r186 (+ OrbitControls) and astronomy-engine 2.1.19, minified ES modules

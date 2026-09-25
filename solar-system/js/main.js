@@ -193,6 +193,9 @@ function frame(now) {
   }
   computeDisplay();
   view.update(disp, drawnExtent(view.focus), 3.2 * scale.helio(50 * AU_KM));
+  // OrbitControls turns the camera with lookAt, which leaves the view matrix one orientation
+  // behind until the render; the labels, picking and glare below project with it
+  camera.updateMatrixWorld();
   const origin = view.origin;
   // simulated time per rendered frame, for rotation blur and to hide bodies that would strobe
   const perFrame = rate() * frameDt;
@@ -227,12 +230,12 @@ function frame(now) {
     const isMoon = def.parent && def.parent !== 'Sun';
     // moon labels only when their planet's system is spread out enough on screen
     let prio = def.name === state.selected ? 100 : !def.parent ? 90 : isMoon ? 10 : 50 - BODIES.indexOf(def) * 0.1;
-    // a body hidden because it moves too fast to draw takes its label and locator ring with it,
-    // which would otherwise jump around its orbit from frame to frame
-    return { name: def.name, pos: v.group.position, R: v.R || drawnRadius(def.name), show: v.group.visible, label: state.show.labels, ring: true, prio, isMoon, parent: def.parent };
+    // a body hidden because it moves too fast to draw takes its label with it, which would
+    // otherwise jump around its orbit from frame to frame
+    return { name: def.name, pos: v.group.position, R: v.R || drawnRadius(def.name), show: v.group.visible, label: state.show.labels, prio, isMoon, parent: def.parent };
   });
   screenPos = labels.update(camera, W, H, entries.filter(e => !e.isMoon || moonSpread(e)), hudBoxes, state.selected);
-  for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false, labels.items[e.name].ring.style.display = 'none';
+  for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false;
   updateHover();
   // the selected body's spin axis, once the body is big enough on screen for it to mean anything
   const sp = screenPos.find(p => p.name === state.selected);

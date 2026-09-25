@@ -1,6 +1,4 @@
-// Name labels and locator rings, as a DOM layer over the canvas. Labels are clickable. A body
-// smaller than a few pixels gets a thin ring around its true position so it can be found, since
-// in true scale almost everything is sub-pixel.
+// Name labels, as a DOM layer over the canvas. Labels are clickable.
 
 import * as THREE from '../../vendor/three.min.js';
 
@@ -36,11 +34,8 @@ export class Labels {
       el.addEventListener('click', e => { e.stopPropagation(); onPick(def.name); });
       el.addEventListener('pointerenter', () => { this.hover = def.name; onHover(); });
       el.addEventListener('pointerleave', () => { if (this.hover === def.name) this.hover = null; onHover(); });
-      const ring = document.createElement('div');
-      ring.className = 'loc';
-      ring.style.borderColor = def.color;
-      layer.appendChild(ring); layer.appendChild(el);
-      this.items[def.name] = { def, el, ring, w: 0, shown: false };
+      layer.appendChild(el);
+      this.items[def.name] = { def, el, w: 0, shown: false };
     }
   }
 
@@ -65,18 +60,11 @@ export class Labels {
       const px = (v3.x * 0.5 + 0.5) * W, py = (-v3.y * 0.5 + 0.5) * H;
       const rpx = e.R / Math.max(dist, 1e-12) * (H / 2) / tanF;
       out.push({ name: e.name, px, py, rpx, onScreen, dist });
-      const hide = () => {
+      // hidden, behind another body, or filling the screen (no caption across its own surface)
+      if (!onScreen || !e.show || !e.label || rpx > H * 0.3 || occluded(camera.position, e.pos, e.name, entries)) {
         if (it.shown) { it.el.style.display = 'none'; it.shown = false; }
-        it.ring.style.display = 'none';
-      };
-      if (!onScreen || !e.show || occluded(camera.position, e.pos, e.name, entries)) { hide(); continue; }
-      // locator ring for sub-pixel bodies
-      if (rpx < 2.5 && e.ring) {
-        it.ring.style.display = 'block';
-        it.ring.style.transform = `translate(${px - 5}px, ${py - 5}px)`;
-      } else it.ring.style.display = 'none';
-      // a body filling the screen needs no caption across its own surface
-      if (!e.label || rpx > H * 0.3) { if (it.shown) { it.el.style.display = 'none'; it.shown = false; } continue; }
+        continue;
+      }
       if (!it.shown) { it.el.style.display = 'block'; it.shown = true; }
       if (!it.w) it.w = it.el.offsetWidth || 60;
       const hw = it.w / 2 + 3, hh = 9;

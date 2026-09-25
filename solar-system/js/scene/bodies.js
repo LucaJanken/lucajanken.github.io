@@ -7,7 +7,7 @@ import { makeShadowUniforms, patchBodyMaterial, sunMaterial, ringMaterial, atmos
 const TEX_DIR = 'textures/';
 const C_KMS = 299792.458;
 
-const _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
+const _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _sun = new THREE.Vector3();
 
 function uranusRingTexture() {
   // 1-D opacity profile from the measured ring radii, widths and optical depths
@@ -258,7 +258,7 @@ export class BodyViews {
       u.uBlurU.value = Math.min(turns, 1);
       u.uBlurN.value = turns < 0.01 ? 1 : Math.min(16, 2 + Math.ceil(turns * 48));
 
-      const sunDist = Math.hypot(...me), sunDir = new THREE.Vector3(sun[0], sun[1], sun[2]).divideScalar(sunDist);
+      const sunDist = Math.hypot(...me), sunDir = _sun.set(sun[0], sun[1], sun[2]).divideScalar(sunDist);
       if (v.atmo) v.atmo.material.uniforms.uSunDir.value.copy(sunDir);
       if (v.rings) {
         const ru = v.rings.material.uniforms;

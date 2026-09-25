@@ -62,7 +62,7 @@ export class SunGlare {
    * @param occluders [{ pos: Vector3, R, visible }] spheres that can hide it
    */
   update(camera, sunPos, R, W, H, pixelRatio, occluders) {
-    const v = sunPos.clone().project(camera);
+    const v = _v.copy(sunPos).project(camera);
     const d = camera.position.distanceTo(sunPos), tanF = Math.tan(camera.fov * Math.PI / 360);
     // radius of the silhouette: a sphere seen from close by looks wider than R/d
     const rpx = R / Math.sqrt(Math.max(d * d - R * R, 1e-24)) * (H / 2) / tanF;
@@ -84,7 +84,7 @@ export class SunGlare {
 }
 
 // fraction of the Sun's disc not hidden by the drawn spheres, sampled at the centre and two rings
-const _s = new THREE.Vector3(), _u = new THREE.Vector3(), _w = new THREE.Vector3(), _ray = new THREE.Vector3(), _oc = new THREE.Vector3(), _t = new THREE.Vector3();
+const _v = new THREE.Vector3(), _s = new THREE.Vector3(), _u = new THREE.Vector3(), _w = new THREE.Vector3(), _ray = new THREE.Vector3(), _oc = new THREE.Vector3(), _t = new THREE.Vector3();
 function visibleFraction(camera, sunPos, R, occluders) {
   const cam = camera.position;
   _ray.subVectors(sunPos, cam).normalize();

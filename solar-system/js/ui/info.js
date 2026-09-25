@@ -8,18 +8,19 @@ const ENGINE_BODIES = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupit
 const len = v => Math.hypot(v[0], v[1], v[2]);
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 
+const esc = x => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const shownHtml = new WeakMap();
 function dl(el, rows) {
   // rows: [label, value, extra?]; `extra` rows are hidden in the compact phone layout
-  el.innerHTML = '';
+  let html = '';
   for (const [k, v, extra] of rows) {
     if (v === null || v === undefined || v === '') continue;
-    const dt = document.createElement('dt'), dd = document.createElement('dd');
-    dt.textContent = k;
+    const cls = extra ? ' class="x"' : '';
     // exponents written as 10^n are set as superscripts
-    dd.innerHTML = String(v).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\^(-?\d+)/g, '<sup>$1</sup>');
-    if (extra) { dt.className = dd.className = 'x'; }
-    el.append(dt, dd);
+    html += `<dt${cls}>${esc(k)}</dt><dd${cls}>${esc(v).replace(/\^(-?\d+)/g, '<sup>$1</sup>')}</dd>`;
   }
+  // most values stay put from one refresh to the next
+  if (shownHtml.get(el) !== html) { el.innerHTML = html; shownHtml.set(el, html); }
 }
 
 export class InfoPanel {
@@ -33,6 +34,7 @@ export class InfoPanel {
     this.moreBox = document.getElementById('more');
     this.note = document.getElementById('infoNote');
     this.current = null;
+    this.drawn = null;   // the snapshot and body the panel shows
     // on phones the panel is compact; tapping it expands it
     this.el.addEventListener('click', e => { if (e.target.closest('summary')) return; this.el.classList.toggle('expanded'); });
   }
@@ -49,7 +51,8 @@ export class InfoPanel {
 
   update(snap) {
     const name = this.current;
-    if (!name) return;
+    if (!name || (this.drawn && this.drawn.snap === snap && this.drawn.name === name)) return;
+    this.drawn = { snap, name };
     const d = BY_NAME[name], b = snap.bodies[name], E = snap.bodies.Earth.pos;
     const R = meanRadius(d), rows = [];
     const toEarth = name === 'Earth' ? 0 : len(sub(b.pos, E));

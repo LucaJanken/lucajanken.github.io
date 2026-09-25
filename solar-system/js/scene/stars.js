@@ -28,9 +28,11 @@ function bvToRgb(bv) {
   return c.map(x => m + (x - m) * 0.55);
 }
 
-// scene direction → J2000 equatorial: the rows are the equatorial axes expressed in the scene
+// the J2000 equatorial axes expressed in the scene
+const EQ_AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => toScene(eqjToEcl(e)));
+// scene direction → J2000 equatorial: the rows are those axes
 function sceneToEquatorial() {
-  const r = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => toScene(eqjToEcl(e)));
+  const r = EQ_AXES;
   return new THREE.Matrix3().set(...r[0], ...r[1], ...r[2]);
 }
 
@@ -100,11 +102,12 @@ export class Stars {
   setEpoch(yearsSinceJ2000) {
     if (!this.points || (this.epochYear !== null && Math.abs(yearsSinceJ2000 - this.epochYear) < 0.5)) return;
     this.epochYear = yearsSinceJ2000;
-    const pos = this.points.geometry.attributes.position.array, n = pos.length / 3;
+    // at the fastest rates this runs every frame, so no per-star allocations
+    const pos = this.points.geometry.attributes.position.array, n = pos.length / 3, [X, Y, Z] = EQ_AXES;
     for (let i = 0; i < n; i++) {
       const ra = this.cat[i * 4] + this.cat[i * 4 + 2] * yearsSinceJ2000, de = this.cat[i * 4 + 1] + this.cat[i * 4 + 3] * yearsSinceJ2000;
-      const v = toScene(eqjToEcl([Math.cos(de) * Math.cos(ra), Math.cos(de) * Math.sin(ra), Math.sin(de)]));
-      pos[i * 3] = v[0] * 5; pos[i * 3 + 1] = v[1] * 5; pos[i * 3 + 2] = v[2] * 5;
+      const x = 5 * Math.cos(de) * Math.cos(ra), y = 5 * Math.cos(de) * Math.sin(ra), z = 5 * Math.sin(de);
+      pos[i * 3] = X[0] * x + Y[0] * y + Z[0] * z; pos[i * 3 + 1] = X[1] * x + Y[1] * y + Z[1] * z; pos[i * 3 + 2] = X[2] * x + Y[2] * y + Z[2] * z;
     }
     this.points.geometry.attributes.position.needsUpdate = true;
   }

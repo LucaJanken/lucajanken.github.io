@@ -68,7 +68,9 @@ const info = new InfoPanel();
 const labels = new Labels($('labels'), BODIES, name => select(name, true), () => updateHover());
 
 // ---------------------------------------------------------------- display positions
-let snap = null, disp = {};
+let snap = null, snapMs = NaN, disp = {};
+// the ephemeris at the displayed time, recomputed only when the time changes
+function refreshSnap() { if (snapMs !== state.simMs) { snap = snapshot(state.simMs); snapMs = state.simMs; } }
 function computeDisplay() {
   disp = { Sun: [0, 0, 0] };
   for (const b of BODIES) {
@@ -83,15 +85,13 @@ function computeDisplay() {
     disp[b.name] = [pp[0] + rel[0] * k, pp[1] + rel[1] * k, pp[2] + rel[2] * k];
   }
 }
-// orbit sample (km, relative to the body's primary) → display offset from the body itself
-function mapOrbitPoint(name, relKm) {
-  const def = BY_NAME[name], p = toScene(relKm), r = Math.hypot(...p), me = disp[name];
-  if (def.parent === 'Sun') {
-    const k = scale.helio(r) / r;
-    return [p[0] * k - me[0], p[1] * k - me[1], p[2] * k - me[2]];
-  }
-  const k = scale.moon(name, def.parent, meanRadius(BY_NAME[def.parent]), r) / r, pp = disp[def.parent];
-  return [pp[0] + p[0] * k - me[0], pp[1] + p[1] * k - me[1], pp[2] + p[2] * k - me[2]];
+// orbit samples (km, scene axes, relative to the body's primary) → display offsets from the body
+// itself: centre + p · radial(|p|) / |p|, as computeDisplay places the body
+function orbitMapping(name) {
+  const def = BY_NAME[name], me = disp[name];
+  if (def.parent === 'Sun') return { centre: [-me[0], -me[1], -me[2]], radial: r => scale.helio(r) };
+  const pp = disp[def.parent], R = meanRadius(BY_NAME[def.parent]);
+  return { centre: [pp[0] - me[0], pp[1] - me[1], pp[2] - me[2]], radial: r => scale.moon(name, def.parent, R, r) };
 }
 const drawnRadius = name => scale.size(meanRadius(BY_NAME[name]));
 const overviewDistance = () => 2.1 * scale.helio(30.1 * AU_KM);
@@ -184,7 +184,7 @@ function frame(now) {
     state.simMs = Math.max(MIN_MS, Math.min(MAX_MS, next));
   }
 
-  snap = snapshot(state.simMs);
+  refreshSnap();
   if (scaleAnim) {
     const k = Math.min(1, (now - scaleAnim.t0) / scaleAnim.ms), e = k * k * (3 - 2 * k);
     // interpolate in the exponent, so the morph looks even across the ~5 decades of change
@@ -207,7 +207,8 @@ function frame(now) {
     v.group.visible = !(isMoon && !state.show.moons) && !tooFast;
     v.tooFast = tooFast;
   }
-  orbits.update(snap, disp, origin, n => state.show.orbits && (state.show.moons || BY_NAME[n].parent === 'Sun'), mapOrbitPoint);
+  // display positions depend only on the time and the scale, so camera moves reuse the lines
+  orbits.update(snap, disp, origin, n => state.show.orbits && (state.show.moons || BY_NAME[n].parent === 'Sun'), orbitMapping, state.simMs + '/' + scale.s);
   sunLight.position.set(-origin[0], -origin[1], -origin[2]);
 
   const gridR = scale.helio(31 * AU_KM);
@@ -225,17 +226,22 @@ function frame(now) {
   if (!hudBoxes) hudBoxes = [...document.querySelectorAll('[data-hud]')].filter(e => e.offsetParent).map(e => {
     const r = e.getBoundingClientRect(); return { left: r.left - 4, right: r.right + 4, top: r.top - 4, bottom: r.bottom + 4 };
   });
-  const entries = BODIES.map(def => {
+  const entries = BODIES.map((def, i) => {
     const v = bodies.views[def.name];
     const isMoon = def.parent && def.parent !== 'Sun';
     // moon labels only when their planet's system is spread out enough on screen
-    let prio = def.name === state.selected ? 100 : !def.parent ? 90 : isMoon ? 10 : 50 - BODIES.indexOf(def) * 0.1;
+    let prio = def.name === state.selected ? 100 : !def.parent ? 90 : isMoon ? 10 : 50 - i * 0.1;
     // a body hidden because it moves too fast to draw takes its label with it, which would
     // otherwise jump around its orbit from frame to frame
     return { name: def.name, pos: v.group.position, R: v.R || drawnRadius(def.name), show: v.group.visible, label: state.show.labels, prio, isMoon, parent: def.parent };
   });
-  screenPos = labels.update(camera, W, H, entries.filter(e => !e.isMoon || moonSpread(e)), hudBoxes, state.selected);
-  for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false;
+  const labelled = [];
+  for (const e of entries) {
+    if (!e.isMoon || moonSpread(e)) { labelled.push(e); continue; }
+    const it = labels.items[e.name];
+    if (it.shown) { it.el.style.display = 'none'; it.shown = false; }
+  }
+  screenPos = labels.update(camera, W, H, labelled, hudBoxes, state.selected);
   updateHover();
   // the selected body's spin axis, once the body is big enough on screen for it to mean anything
   const sp = screenPos.find(p => p.name === state.selected);
@@ -409,7 +415,7 @@ function jumpToEvent(e) {
   // a playback rate at which the event takes tens of seconds instead of passing in one frame
   setSpeed(Math.log10({ solar: 120, lunar: 600, transit: 600 }[e.kind]));
   state.dir = 1;
-  snap = snapshot(state.simMs);
+  refreshSnap();
   setScale(1, false);
   computeDisplay();
   camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
@@ -627,7 +633,7 @@ buildList();
 wire();
 setTimeMode(timeMode);
 const fromUrl = readUrl();
-snap = snapshot(state.simMs);
+refreshSnap();
 computeDisplay();
 camera.position.set(0, 0.42, 1).normalize().multiplyScalar(overviewDistance());
 select(fromUrl.sel || 'Sun', false);

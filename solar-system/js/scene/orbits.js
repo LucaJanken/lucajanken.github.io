@@ -9,10 +9,14 @@
 // thousands of km as a Sun-centred float32 polyline would.
 
 import * as THREE from '../../vendor/three.min.js';
-import { oscElements, orbitPoint, orbitState } from '../astro/ephemeris.js';
+import { oscElements, orbitState } from '../astro/ephemeris.js';
 import { BODIES } from '../data/bodies.js';
+import { toScene } from './scale.js';
 
 const N = 480;
+// eccentric anomaly behind the body of each sample: dense at both ends (next to the body), sparse
+// on the far side
+const BEHIND = Float64Array.from({ length: N }, (_, i) => Math.PI * (1 - Math.cos(Math.PI * i / (N - 1))));
 
 export class Orbits {
   constructor(scene) {
@@ -36,31 +40,36 @@ export class Orbits {
   }
 
   /**
-   * @param map(name, relKm) → display offset of a point relative to the body's own display position
+   * @param map(name) → { centre, radial }: a point p (km, scene axes, relative to the body's
+   *   primary) is drawn at centre + p · radial(|p|) / |p|, relative to the body's own display position
+   * @param stamp  changes whenever the display positions do (time, scale); lines are only rebuilt then
    */
-  update(snap, disp, origin, visible, map) {
+  update(snap, disp, origin, visible, map, stamp) {
     for (const name in this.lines) {
       const L = this.lines[name];
       L.line.visible = visible(name);
       const d = disp[name];
       L.line.position.set(d[0] - origin[0], d[1] - origin[1], d[2] - origin[2]);
-      if (!L.line.visible) continue;
+      if (!L.line.visible || L.stamp === stamp) continue;
       const os = orbitState(snap, name);
       // Earth's ellipse is that of the Earth–Moon barycentre; shifted by Earth's offset from it
       // (≤ 4,700 km, the scale of the Moon's monthly tug) it runs through Earth's centre
-      const b = snap.bodies[name], off = name === 'Earth'
-        ? [b.pos[0] - os.pos[0], b.pos[1] - os.pos[1], b.pos[2] - os.pos[2]] : os.offset;
+      const b = snap.bodies[name], off = toScene(name === 'Earth'
+        ? [b.pos[0] - os.pos[0], b.pos[1] - os.pos[1], b.pos[2] - os.pos[2]] : os.offset);
       const el = oscElements(os.pos, os.vel, os.mu);
-      if (!(el.e < 1)) { L.line.visible = false; continue; }
+      if (!(el.e < 1)) { L.line.visible = false; L.stamp = null; continue; }
+      // the ellipse x P + y Q (orbitPoint), with P and Q taken into scene axes once
+      const P = toScene(el.P), Q = toScene(el.Q), bAxis = el.a * Math.sqrt(1 - el.e * el.e);
+      const { centre: c, radial } = map(name);
       const arr = L.line.geometry.attributes.position.array;
       for (let i = 0; i < N; i++) {
-        // sample densely at both ends (next to the body), sparsely on the far side
-        const g = (1 - Math.cos(Math.PI * i / (N - 1))) / 2;
-        const q = orbitPoint(el, el.E - 2 * Math.PI * g);
-        const p = map(name, [q[0] + off[0], q[1] + off[1], q[2] + off[2]]);
-        arr[i * 3] = p[0]; arr[i * 3 + 1] = p[1]; arr[i * 3 + 2] = p[2];
+        const E = el.E - BEHIND[i], x = el.a * (Math.cos(E) - el.e), y = bAxis * Math.sin(E);
+        const px = P[0] * x + Q[0] * y + off[0], py = P[1] * x + Q[1] * y + off[1], pz = P[2] * x + Q[2] * y + off[2];
+        const r = Math.sqrt(px * px + py * py + pz * pz), k = radial(r) / r;
+        arr[i * 3] = c[0] + px * k; arr[i * 3 + 1] = c[1] + py * k; arr[i * 3 + 2] = c[2] + pz * k;
       }
       L.line.geometry.attributes.position.needsUpdate = true;
+      L.stamp = stamp;
     }
   }
 }

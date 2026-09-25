@@ -12,7 +12,7 @@ function occluded(cam, pos, self, spheres) {
   const L = ray.length();
   ray.divideScalar(L);
   for (const s of spheres) {
-    if (s.name === self) continue;
+    if (s.name === self || !s.show) continue;
     oc.subVectors(s.pos, cam);
     const t = oc.dot(ray);
     if (t <= 0 || t >= L) continue;

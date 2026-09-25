@@ -166,7 +166,7 @@ let wakeUntil = performance.now() + 3000;
 function wake(ms = 1500) { wakeUntil = Math.max(wakeUntil, performance.now() + ms); }
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const elapsed = (now - last) / 1000, dt = Math.min(0.1, elapsed);
   last = now;
   const active = state.playing || view.tween || scaleAnim || now < wakeUntil;
   if (!active) {
@@ -175,7 +175,9 @@ function frame(now) {
     return;
   }
   frameDt = frameDt * 0.9 + dt * 0.1;
-  const dtSim = rate() * dt;
+  // At real time the clock keeps pace with the wall clock, also across slow frames and a hidden
+  // tab (no frames at all); faster rates are capped so that a hiccup cannot skip years.
+  const dtSim = rate() * (Math.abs(rate()) <= 1 ? elapsed : dt);
   if (dtSim) {
     const next = state.simMs + dtSim * 1000;
     if (next <= MIN_MS || next >= MAX_MS) { state.playing = false; toast('The model covers the years 1000–3000.'); }
@@ -225,7 +227,9 @@ function frame(now) {
     const isMoon = def.parent && def.parent !== 'Sun';
     // moon labels only when their planet's system is spread out enough on screen
     let prio = def.name === state.selected ? 100 : !def.parent ? 90 : isMoon ? 10 : 50 - BODIES.indexOf(def) * 0.1;
-    return { name: def.name, pos: v.group.position, R: v.R || drawnRadius(def.name), show: !(isMoon && !state.show.moons), label: state.show.labels, ring: true, prio, isMoon, parent: def.parent };
+    // a body hidden because it moves too fast to draw takes its label and locator ring with it,
+    // which would otherwise jump around its orbit from frame to frame
+    return { name: def.name, pos: v.group.position, R: v.R || drawnRadius(def.name), show: v.group.visible, label: state.show.labels, ring: true, prio, isMoon, parent: def.parent };
   });
   screenPos = labels.update(camera, W, H, entries.filter(e => !e.isMoon || moonSpread(e)), hudBoxes, state.selected);
   for (const e of entries.filter(e => e.isMoon && !moonSpread(e))) labels.items[e.name].el.style.display = 'none', labels.items[e.name].shown = false, labels.items[e.name].ring.style.display = 'none';
@@ -298,6 +302,8 @@ function setTimeMode(m) {
   try { localStorage.setItem('solarSystem.timeMode', m); } catch {}
   $('timeMode').textContent = m;
   $('timeDetails').hidden = m !== 'Scientific';
+  // the date field is typed in the same time as the clock shows
+  $('when').setAttribute('aria-label', m === 'Local' ? 'Date and time (local)' : 'Date and time (UTC)');
   hudBoxes = null; hudDirty = true; wake();
 }
 const timeEls = { clock: $('clock'), date: $('date'), rel: $('rel'), tz: $('tzLabel'), badge: $('badge') };
@@ -321,7 +327,7 @@ function updateHud() {
     $('tdJD').textContent = (snap.tt + 2451545).toFixed(5);
   }
   const when = $('when');
-  if (!whenStaged && document.activeElement !== when) when.value = localInput(d);
+  if (!whenStaged && document.activeElement !== when) when.value = localInput(d, utc);
   $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
   // the rate stays visible while paused (dimmed): it is what Play resumes at
   const rateEl = $('rate');
@@ -348,10 +354,17 @@ function buildList() {
     btn.innerHTML = `<span class="dot" style="background:${def.color}"></span><span>${def.name}</span>`;
     const nMoons = BODIES.filter(b => b.parent === def.name).length;
     if (nMoons && def.name !== 'Sun') btn.insertAdjacentHTML('beforeend', `<span class="n" data-n="${nMoons}">${nMoons}</span>`);
-    btn.addEventListener('click', () => select(def.name, true));
+    // on phones the list is a menu over the view: get it out of the way of the body just chosen
+    btn.addEventListener('click', () => { select(def.name, true); setMenu(false); });
     li.appendChild(btn);
     ul.appendChild(li);
   }
+}
+// the phone layout's menu (bodies and view options); on wider screens they are always shown
+function setMenu(open) {
+  $('right').classList.toggle('open', open);
+  $('menuBtn').setAttribute('aria-expanded', open);
+  hudBoxes = null;
 }
 function paintList() {
   const sel = state.selected, selSystem = BY_NAME[sel] && BY_NAME[sel].parent && BY_NAME[sel].parent !== 'Sun' ? BY_NAME[sel].parent : sel;
@@ -516,7 +529,8 @@ function wire() {
   when.addEventListener('change', () => draft(true));
   $('whenForm').addEventListener('submit', e => {
     e.preventDefault();
-    const t = parseLocalInput(when.value);   // local time, Julian calendar before 1582
+    // in the clock's time (local or UTC), Julian calendar before 1582
+    const t = parseLocalInput(when.value, timeMode !== 'Local');
     if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return; }
     draft(false); setTime(t); when.blur();
   });
@@ -541,15 +555,12 @@ function wire() {
   // the info panel changes height when "More data" opens or (on phones) when it expands
   $('more').addEventListener('toggle', () => { hudBoxes = null; });
   $('info').addEventListener('click', () => { hudBoxes = null; });
-  $('menuBtn').addEventListener('click', e => {
-    const r = $('right'); r.classList.toggle('open');
-    e.currentTarget.setAttribute('aria-expanded', r.classList.contains('open')); hudBoxes = null;
-  });
+  $('menuBtn').addEventListener('click', () => setMenu(!$('right').classList.contains('open')));
 
   // click on the canvas: pick the body under the pointer
   let down = null;
   const cv = renderer.domElement;
-  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; setMenu(false); });
   cv.addEventListener('pointerup', e => {
     if (!down || Math.abs(e.clientX - down[0]) + Math.abs(e.clientY - down[1]) > 5) return;
     const r = cv.getBoundingClientRect(), best = pick(e.clientX - r.left, e.clientY - r.top);
@@ -564,14 +575,19 @@ function wire() {
   }, { passive: true });
   cv.addEventListener('pointerleave', () => { pointer = null; updateHover(); });
 
+  // whether focus was last moved with the keyboard (Tab) rather than by clicking
+  let keyboardNav = false;
+  window.addEventListener('pointerdown', () => { keyboardNav = false; }, true);
   window.addEventListener('keydown', e => {
+    if (e.key === 'Tab') keyboardNav = true;
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') { if (e.key.startsWith('Arrow')) e.stopImmediatePropagation(); return; }
     if (e.key.startsWith('Arrow') && e.target.closest && e.target.closest('.sheet')) { e.stopImmediatePropagation(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     let used = true;
     switch (e.key) {
-      case ' ': if (tag === 'BUTTON' || tag === 'SUMMARY') { used = false; break; } setPlaying(!state.playing); break;
+      // Space presses a button reached with the keyboard; after a click it is play/pause again
+      case ' ': if ((tag === 'BUTTON' || tag === 'SUMMARY') && keyboardNav) { used = false; break; } setPlaying(!state.playing); break;
       case ',': setTime(state.simMs - DAY_MS); break;
       case '.': setTime(state.simMs + DAY_MS); break;
       case '[': setSpeed(state.speed - 0.25); break;

@@ -26,8 +26,8 @@ export function civil(d, utc = false) {
   return { y, m, d: day, h: Math.floor(tod / 3600000), min: Math.floor(tod / 60000) % 60, s: Math.floor(tod / 1000) % 60, julian };
 }
 
-/** instant (ms) for calendar fields in local time; Julian calendar before 15 Oct 1582 */
-export function fromCivil(y, m, day, h, min) {
+/** instant (ms) for calendar fields in local time (or UT); Julian calendar before 15 Oct 1582 */
+export function fromCivil(y, m, day, h, min, utc = false) {
   let localMs;
   if (y < 1582 || (y === 1582 && (m < 10 || (m === 10 && day < 15)))) {
     const yy = m > 2 ? y : y - 1, mm = m > 2 ? m : m + 12;
@@ -37,6 +37,7 @@ export function fromCivil(y, m, day, h, min) {
     const g = new Date(0); g.setUTCFullYear(y, m - 1, day); localMs = g.getTime();
   }
   localMs += (h * 60 + min) * 60000;
+  if (utc) return localMs;
   // local → UT with the zone offset in force then (local mean time before standard time)
   return localMs + new Date(localMs).getTimezoneOffset() * 60000;
 }
@@ -53,14 +54,14 @@ export function tzName(d) {
   const off = -d.getTimezoneOffset();
   return 'UTC' + (off >= 0 ? '+' : '−') + Math.floor(Math.abs(off) / 60) + (Math.abs(off) % 60 ? ':' + pad(Math.abs(off) % 60) : '');
 }
-// value for <input type=datetime-local> (local time, in the calendar of that date)
-export function localInput(d) {
-  const c = civil(d);
+// value for <input type=datetime-local> (local time or UT, in the calendar of that date)
+export function localInput(d, utc = false) {
+  const c = civil(d, utc);
   return pad(c.y, 4) + '-' + pad(c.m) + '-' + pad(c.d) + 'T' + pad(c.h) + ':' + pad(c.min);
 }
-export function parseLocalInput(v) {
+export function parseLocalInput(v, utc = false) {
   const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(v);
-  return m ? fromCivil(+m[1], +m[2], +m[3], +m[4], +m[5]) : NaN;
+  return m ? fromCivil(+m[1], +m[2], +m[3], +m[4], +m[5], utc) : NaN;
 }
 
 export function fmtDuration(sec) {

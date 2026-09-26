@@ -29,6 +29,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+/* an app, not a page: a pinch or double tap on the panels must not zoom the whole page (the 3D view
+   has its own pinch, touch-action: none); lists and sheets still scroll */
+html, body { touch-action: pan-x pan-y; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

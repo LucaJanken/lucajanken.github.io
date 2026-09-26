@@ -87,9 +87,9 @@
     </div>
     <div class="speed-box">
       <div class="row">
-        <button type="button" class="btn" id="slowBtn" aria-label="Slower ( [ )" title="Slower ( [ )">−</button>
+        <button type="button" class="btn" id="slowBtn" aria-label="One step toward backward ( [ )" title="One step toward backward ( [ )">−</button>
         <input type="range" id="speed" min="-8.9" max="8.9" step="0.01" aria-label="Simulation speed: left runs time backwards, right forwards, the middle stops it">
-        <button type="button" class="btn" id="fastBtn" aria-label="Faster ( ] )" title="Faster ( ] )">+</button>
+        <button type="button" class="btn" id="fastBtn" aria-label="One step toward forward ( ] )" title="One step toward forward ( ] )">+</button>
       </div>
       <!-- the speed the slider is set to, between its two directions -->
       <div class="speed-ends"><span aria-hidden="true">◂<span class="w"> backward</span></span><span class="rate" id="rate" aria-live="off"></span><span aria-hidden="true"><span class="w">forward </span>▸</span></div>
@@ -116,7 +116,7 @@
       <li>The speed slider runs time forward to the right and backward to the left, from real time next to the middle to years per second at the ends; the notch in the middle stops it. <b>Play</b> and <b>Pause</b> keep the chosen speed. The arrows beside them step time back or forward by an hour, a day, a month or a year: tap the step between them to change it. Days, months and years keep the time of day, so Earth turns the same face to the Sun. In the middle notch the speed reads 0×; paused with the button, it shows (dimmed) the speed Play resumes at.</li>
       <li>The calendar button goes to a date, in the time the clock shows (local or UTC). On a phone it opens the phone’s own date picker, and confirming there goes to the date; on a computer type or pick a date and press <b>Go</b> (or <kbd>Enter</kbd>), or <kbd>Esc</kbd> to leave it.</li>
       <li>The button above the clock switches it between <b>Local</b> time, <b>UTC</b>, and <b>Scientific</b>, which adds the astronomical time scales: UT (Earth’s rotation, UT1), TT (the uniform time the planets move by), ΔT = TT − UT and the Julian Date. The model takes UTC to be UT1; the two never differ by more than 0.9 s.</li>
-      <li><kbd>Space</kbd> play/pause · <kbd>,</kbd> <kbd>.</kbd> one step back/forward · <kbd>[</kbd> <kbd>]</kbd> slower/faster · <kbd>R</kbd> reverse the direction of time · <kbd>N</kbd> now · <kbd>T</kbd> scale · <kbd>Esc</kbd> back to the overview.</li>
+      <li><kbd>Space</kbd> play/pause · <kbd>,</kbd> <kbd>.</kbd> one step back/forward · <kbd>[</kbd> <kbd>]</kbd> (or <b>−</b> <b>+</b>) the speed slider one step left/right · <kbd>R</kbd> reverse the direction of time · <kbd>N</kbd> now · <kbd>T</kbd> scale · <kbd>Esc</kbd> back to the overview.</li>
       <li>The information panel starts folded down to the selected body’s name: tap it (or <b>+</b>) to open it, and <b>–</b> folds it again. On a phone, tap an open panel to show all of its data.</li>
     </ul>
 

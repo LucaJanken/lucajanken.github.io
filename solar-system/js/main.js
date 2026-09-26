@@ -254,6 +254,15 @@ function setStep(s) {
   $('backBtn').title = `Back one ${s.name} ( , )`; $('backBtn').setAttribute('aria-label', $('backBtn').title);
   $('fwdBtn').title = `Forward one ${s.name} ( . )`; $('fwdBtn').setAttribute('aria-label', $('fwdBtn').title);
 }
+// − and + (and [ ]) move the speed slider one step left or right, as dragging it would: toward the
+// middle a rate slows down to real time, then stops in the notch, then runs the other way
+function stepSpeed(sign) {
+  if (!state.playing && state.parked) { state.dir = sign; state.speed = 0; state.parked = false; state.playing = true; }
+  else if (sign === state.dir) setSpeed(state.speed + 0.25);
+  else if (state.speed > 0) setSpeed(state.speed - 0.25);
+  else { state.playing = false; state.parked = true; }
+  hudDirty = true;
+}
 function setPlaying(on) { state.playing = on; if (on) state.parked = false; hudDirty = true; }
 
 // ---------------------------------------------------------------- main loop
@@ -614,6 +623,9 @@ function wire() {
   for (const ev of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'click', 'touchstart']) window.addEventListener(ev, () => wake(), { capture: true, passive: true });
   window.addEventListener('pointermove', e => { if (e.buttons) wake(); }, { passive: true });
   document.addEventListener('visibilitychange', () => wake());
+  // iOS Safari zooms the page on a pinch even where touch-action forbids it; its own gesture events
+  // (not the pointer events the 3D view uses) can still be cancelled
+  for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
   view.controls.addEventListener('change', () => wake(300));   // includes damping after a drag
   THREE.DefaultLoadingManager.onProgress = () => wake();
   bodies.onChange = () => wake();
@@ -648,8 +660,8 @@ function wire() {
     }
     hudDirty = true;
   });
-  $('slowBtn').addEventListener('click', () => setSpeed(state.speed - 0.25));
-  $('fastBtn').addEventListener('click', () => setSpeed(state.speed + 0.25));
+  $('slowBtn').addEventListener('click', () => stepSpeed(-1));
+  $('fastBtn').addEventListener('click', () => stepSpeed(1));
 
   // The calendar button. On touchscreens the date input lies invisibly over it (style.css), so a tap
   // opens the system's own picker, and the date it sets is applied at once. On computers the button
@@ -728,8 +740,8 @@ function wire() {
       case ' ': if ((tag === 'BUTTON' || tag === 'SUMMARY') && keyboardNav) { used = false; break; } setPlaying(!state.playing); break;
       case ',': stepTime(-1); break;
       case '.': stepTime(1); break;
-      case '[': setSpeed(state.speed - 0.25); break;
-      case ']': setSpeed(state.speed + 0.25); break;
+      case '[': stepSpeed(-1); break;
+      case ']': stepSpeed(1); break;
       case 'r': case 'R': state.dir = -state.dir; break;
       case 'n': case 'N': setTime(Date.now()); break;
       case 't': case 'T': setScale(scale.s < 0.5 ? 1 : 0); break;

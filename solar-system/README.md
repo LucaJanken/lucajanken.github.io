@@ -10,7 +10,8 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
   ends; the notch in the middle stops time (the rate reads 0×). Play/Pause keeps the chosen speed
   (shown dimmed while paused), and `R` reverses it. ◂ ▸ (or `,` `.`) step by an hour, a day, a
   calendar month or a calendar year; tapping the step between them changes it (remembered).
-- A typed date is a draft until OK or Enter; Esc puts back the displayed time.
+- The calendar button goes to a date: on phones through the system's own picker (confirming there
+  applies it), on computers through a small popover with Go (or Enter; Esc closes it).
 - The clock shows Local time, UTC, or Scientific (UTC with UT, TT, ΔT and the Julian Date); the
   choice is remembered. An Extrapolated tag appears outside the validated 1800–2050.
 - Selecting a body glides the camera over to it without changing zoom or viewing angle (it only

@@ -252,7 +252,7 @@ function setStep(s) {
 function setPlaying(on) { state.playing = on; if (on) state.parked = false; hudDirty = true; }
 
 // ---------------------------------------------------------------- main loop
-let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60, whenStaged = false;
+let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60, whenOpen = false;
 let hudBoxes = null, screenPos = [];
 // Render on demand: while time is paused and nobody interacts, nothing changes on screen, so an
 // idle page draws nothing (laptop and phone batteries). Input, loads and state changes wake it.
@@ -432,7 +432,8 @@ function updateHud() {
     $('tdJD').textContent = (snap.tt + 2451545).toFixed(5);
   }
   const when = $('when');
-  if (!whenStaged && document.activeElement !== when) when.value = localInput(d, utc);
+  // (not while it is being edited: in the popover, or in a phone's picker)
+  if (!whenOpen && document.activeElement !== when) when.value = localInput(d, utc);
   $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
   // Paused with the button, the rate stays visible (dimmed): it is what Play resumes at. Stopped in
   // the slider's notch, time stands still and the rate says so.
@@ -652,26 +653,32 @@ function wire() {
   $('slowBtn').addEventListener('click', () => setSpeed(state.speed - 0.25));
   $('fastBtn').addEventListener('click', () => setSpeed(state.speed + 0.25));
 
-  // the date field is a draft until confirmed with OK or Enter; Esc, or leaving it for something
-  // else, puts back the displayed time
-  const when = $('when'), whenOk = $('whenOk');
-  const draft = on => { whenStaged = on; $('whenForm').classList.toggle('staged', on); whenOk.disabled = !on; if (!on) hudDirty = true; };
-  when.addEventListener('input', () => draft(true));
-  when.addEventListener('change', () => draft(true));
-  $('whenForm').addEventListener('submit', e => {
-    e.preventDefault();
-    // in the clock's time (local or UTC), Julian calendar before 1582
+  // The calendar button. On touchscreens the date input lies invisibly over it (style.css), so a tap
+  // opens the system's own picker, and the date it sets is applied at once. On computers the button
+  // opens the input as a popover: a date typed or picked there is applied with Go or Enter, and Esc
+  // (or a click elsewhere) leaves it.
+  const when = $('when'), whenForm = $('whenForm'), whenBtn = $('whenBtn');
+  const touch = () => matchMedia('(pointer: coarse)').matches;
+  const setWhenOpen = on => { whenOpen = on; whenForm.classList.toggle('open', on); whenBtn.setAttribute('aria-expanded', on); if (!on) hudDirty = true; };
+  // in the clock's time (local or UTC), Julian calendar before 1582
+  const goToWhen = () => {
     const t = parseLocalInput(when.value, timeMode !== 'Local');
-    if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return; }
-    draft(false); setTime(t); when.blur();
+    if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return false; }
+    setTime(t); return true;
+  };
+  whenBtn.addEventListener('click', () => {
+    if (whenOpen) { setWhenOpen(false); return; }
+    when.value = localInput(new Date(state.simMs), timeMode !== 'Local');
+    setWhenOpen(true);
+    when.focus();
+    try { when.showPicker(); } catch {}
   });
+  whenForm.addEventListener('submit', e => { e.preventDefault(); if (goToWhen()) { setWhenOpen(false); when.blur(); } });
+  when.addEventListener('change', () => { if (touch() && when.value) goToWhen(); });
   when.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); draft(false); when.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setWhenOpen(false); when.blur(); }
   });
-  // Focus moving to another control discards the draft, but a blur with nowhere to go does not:
-  // on phones the native picker closes that way, and the draft must survive until OK is tapped.
-  when.addEventListener('blur', e => { if (e.relatedTarget && e.relatedTarget !== whenOk) draft(false); });
-  window.addEventListener('pointerdown', e => { if (whenStaged && !e.target.closest('#whenForm')) draft(false); }, true);
+  window.addEventListener('pointerdown', e => { if (whenOpen && !e.target.closest('#whenForm, #whenBtn')) setWhenOpen(false); }, true);
   $('timeMode').addEventListener('click', () => setTimeMode(TIME_MODES[(TIME_MODES.indexOf(timeMode) + 1) % TIME_MODES.length]));
   $('badge').addEventListener('click', () => { openSheet('guide'); $('guide').querySelector('table').scrollIntoView({ block: 'center' }); });
   $('eventsBtn').addEventListener('click', () => openEvents(false));

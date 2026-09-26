@@ -21,7 +21,8 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
 - Dragging (one finger) turns the view around the focus; scroll or pinch zooms. Moving the view
   sideways (right- or shift-drag, arrow keys, two-finger drag) works only with Lock off. The phone
   menu stays open while bodies are picked from it; a planet's moon count opens its moons in the
-  list. The information panel folds down to the body's name with its – button (remembered).
+  list. The information panel starts folded down to the body's name: tapping it opens it, and
+  its – button folds it again.
 - The view state, including time, speed and direction, is kept in the URL by Share view
   (`#t=…&speed=…&dir=-1…`; links without `dir` run forward).
 

@@ -199,7 +199,9 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
      (Sun to Saturn). That ends above the information panel (compact, at most ~200px tall) on all
      but the shortest phones, where it shrinks, to no less than four rows. */
   .right { display: none; top: 56px; bottom: auto; width: 240px; height: clamp(150px, calc(100% - 56px - var(--ctl-h, 110px) - var(--gb) - 2 * var(--gap) - 200px), 260px); overflow-y: auto; overscroll-behavior: contain; }
-  .right.open { display: flex; z-index: 4; }
+  /* iOS Safari will not touch-scroll an element with pointer-events: none, even when its children
+     take the touches (the desktop column has it so clicks pass through its gaps) */
+  .right.open { display: flex; z-index: 4; pointer-events: auto; }
   .right::-webkit-scrollbar { width: 6px; } .right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
   .bodies { flex: none; overflow: visible; }
   /* finger-sized rows */

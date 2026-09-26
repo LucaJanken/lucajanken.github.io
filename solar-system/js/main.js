@@ -103,6 +103,15 @@ function closeDistance(name) {
   const side = Math.min(W, H, free.bottom - free.top);
   return extent / Math.sin(Math.atan(0.4 * Math.tan(DEFAULT_FOV * Math.PI / 360) * side / H));
 }
+// How far out the camera may go: far enough for the whole of Pluto's orbit (out to 49 AU from the
+// Sun) to fit, with a margin, in the narrower side of the part of the screen the panels leave free,
+// wherever the view is centred (the orbit can reach that much farther from an outer planet).
+function maxDistance() {
+  const W = stage.clientWidth || 1, H = stage.clientHeight || 1, t = view.controls.target, o = view.origin;
+  const r = scale.helio(50 * AU_KM) + Math.hypot(t.x + o[0], t.y + o[1], t.z + o[2]);   // + the Sun's distance from the target
+  const side = Math.min(W, H, free.bottom - free.top);
+  return Math.max(3.2 * scale.helio(50 * AU_KM), 1.15 * r / Math.sin(Math.atan(Math.tan(DEFAULT_FOV * Math.PI / 360) * side / H)));
+}
 // The viewing direction for that close look: the user's own, turned toward the Sun just enough that
 // the body is seen at most 60° from full phase (three quarters lit) rather than as a dark disc.
 const MAX_PHASE = Math.PI / 3;
@@ -281,7 +290,7 @@ function frame(now) {
     if (k >= 1) scaleAnim = null;
   }
   computeDisplay();
-  view.update(disp, drawnExtent(view.focus), 3.2 * scale.helio(50 * AU_KM));
+  view.update(disp, drawnExtent(view.focus), maxDistance());
   applyShift(dt);
   // OrbitControls turns the camera with lookAt, which leaves the view matrix one orientation
   // behind until the render; the labels, picking and glare below project with it
@@ -787,4 +796,4 @@ function look(name, dir = 'sun', k = 5) {
   if (dir === 'sun') d.add(new THREE.Vector3(0, 0.35, 0)).normalize();
   view.setFocus(name, disp, { dist: drawnRadius(name) * k, dir: d });
 }
-window.solarSystem = { look, state, view, scale, bodies, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };
+window.solarSystem = { look, state, view, scale, bodies, orbits, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };

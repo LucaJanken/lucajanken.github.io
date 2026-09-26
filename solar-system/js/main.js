@@ -53,10 +53,6 @@ const DEFAULT_FOV = 45;
 const sunLight = new THREE.PointLight(0xfff6ea, SUN_INTENSITY, 0, 0);
 scene.add(sunLight);
 
-const grid = new THREE.PolarGridHelper(1, 12, 8, 128, 0x2a3346, 0x1b2130);
-grid.material.transparent = true; grid.material.depthWrite = false;
-scene.add(grid);
-
 const shared = { nightOn: { value: 1 } };
 const scale = new DisplayScale();
 const bodies = new BodyViews(scene, renderer, shared);
@@ -304,13 +300,6 @@ function frame(now) {
   // display positions depend only on the time and the scale, so camera moves reuse the lines
   orbits.update(snap, disp, origin, n => state.show.orbits && (state.show.moons || BY_NAME[n].parent === 'Sun'), orbitMapping, state.simMs + '/' + scale.s);
   sunLight.position.set(-origin[0], -origin[1], -origin[2]);
-
-  const gridR = scale.helio(31 * AU_KM);
-  grid.position.set(-origin[0], -origin[1], -origin[2]);
-  grid.scale.setScalar(gridR);
-  const camD = view.distance();
-  grid.material.opacity = state.show.orbits ? 0.3 * Math.max(0, Math.min(1, (camD / gridR - 0.15) / 0.3)) : 0;
-  grid.visible = grid.material.opacity > 0.01;
 
   stars.setEpoch((snap.tt) / 365.25);
   stars.visible = state.show.stars;

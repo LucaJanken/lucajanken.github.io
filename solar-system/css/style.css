@@ -48,7 +48,6 @@ a { color: oklch(0.80 0.11 230); }
 .clock { font: 300 40px/1.05 var(--mono); letter-spacing: -0.01em; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .date-row { display: flex; gap: 12px; align-items: baseline; margin-top: 4px; }
 .date { font: 400 15px/1.2 var(--mono); letter-spacing: 0.05em; color: var(--accent); }
-.rel { font: 400 11px/1 var(--mono); color: var(--text-3); }
 .time-head { display: flex; flex-wrap: wrap; gap: 6px 9px; align-items: center; min-height: 20px; }
 .chip { border: 1px solid var(--line); background: rgba(255,255,255,0.03); padding: 4px 7px; font: 400 10px/1 var(--mono); letter-spacing: 0.06em; color: var(--text-2); }
 .chip.mode { letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-2); }
@@ -182,8 +181,10 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
   .time { min-width: 0; right: calc(var(--gr) + 80px); }
   .date { font-size: 13px; }
   .menu-btn { display: block; position: absolute; top: var(--gap); right: var(--gr); z-index: 4; }
-  /* the menu scrolls as a whole, down to the time controls, so the body list is never squeezed */
-  .right { display: none; top: 56px; bottom: auto; width: 240px; max-height: calc(100% - 56px - var(--ctl-h, 180px) - var(--gb) - var(--gap)); overflow-y: auto; overscroll-behavior: contain; }
+  /* The menu has a fixed height and scrolls as a whole: the heading and about five and a half rows
+     (Sun to Jupiter). That ends above the information panel (compact, at most ~200px tall) on all
+     but the shortest phones, where it shrinks, to no less than four rows. */
+  .right { display: none; top: 56px; bottom: auto; width: 240px; height: clamp(150px, calc(100% - 56px - var(--ctl-h, 180px) - var(--gb) - 2 * var(--gap) - 200px), 220px); overflow-y: auto; overscroll-behavior: contain; }
   .right.open { display: flex; z-index: 4; }
   .right::-webkit-scrollbar { width: 6px; } .right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
   .bodies { flex: none; overflow: visible; }
@@ -211,8 +212,8 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
   .timectl { left: auto; width: min(400px, 52%); padding: 8px; gap: 6px; }
   .speed-ends { display: none; }
   .info { right: auto; width: min(360px, calc(100% - min(400px, 52%) - var(--gl) - var(--gr) - var(--gap))); bottom: var(--gb); max-height: calc(100% - 96px - var(--gb)); }
-  /* too little height to stop above the time controls: the menu covers them while open */
-  .right { max-height: calc(100% - 56px - var(--gb)); }
+  /* no room below the Menu button: the menu opens beside it, from the top, and ends above the time controls */
+  .right { top: var(--gap); right: calc(var(--gr) + 58px); height: min(220px, calc(100% - 2 * var(--gap) - var(--ctl-h, 130px) - var(--gb))); }
 }
 @media (max-height: 600px) and (min-height: 481px) and (min-width: 761px) {
   .clock { font-size: 28px; }

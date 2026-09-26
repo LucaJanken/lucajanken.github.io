@@ -73,16 +73,6 @@ export function fmtDuration(sec) {
   return (a / 86400 / 365.25).toFixed(2) + ' years';
 }
 
-export function fmtRelative(ms) {
-  const a = Math.abs(ms) / 1000;
-  if (a < 30) return 'now';
-  const sign = ms > 0 ? '+' : '−';
-  if (a < 3600) return sign + Math.round(a / 60) + ' min from now';
-  if (a < 86400) return sign + (a / 3600).toFixed(1) + ' h from now';
-  if (a < 86400 * 400) return sign + (a / 86400).toFixed(a < 86400 * 10 ? 1 : 0) + ' d from now';
-  return sign + (a / 86400 / 365.25).toFixed(1) + ' yr from now';
-}
-
 export function fmtRate(r) {
   const s = r < 0 ? '−' : '', a = Math.abs(r);
   const u = x => a < x * 0.9995;

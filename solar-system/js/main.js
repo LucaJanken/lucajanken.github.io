@@ -13,7 +13,7 @@ import { Labels } from './scene/labels.js';
 import { SunGlare } from './scene/glare.js';
 import { SUN_INTENSITY } from './scene/shaders.js';
 import { InfoPanel } from './ui/info.js';
-import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate, fmtRelative } from './ui/format.js';
+import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate } from './ui/format.js';
 
 const $ = id => document.getElementById(id);
 const DAY_MS = 86400000;
@@ -264,8 +264,7 @@ function frame(now) {
   last = now;
   const active = state.playing || view.tween || scaleAnim || now < wakeUntil || viewShift !== shiftTarget;
   if (!active) {
-    // the clock text ("… from now") still ages, slowly
-    if (hudDirty || now - lastHud > 1000) { lastHud = now; hudDirty = false; updateHud(); }
+    if (hudDirty) { lastHud = now; hudDirty = false; updateHud(); }
     return;
   }
   frameDt = frameDt * 0.9 + dt * 0.1;
@@ -413,7 +412,7 @@ function setTimeMode(m) {
   $('when').setAttribute('aria-label', m === 'Local' ? 'Date and time (local)' : 'Date and time (UTC)');
   hudBoxes = null; hudDirty = true; wake();
 }
-const timeEls = { clock: $('clock'), date: $('date'), rel: $('rel'), tz: $('tzLabel'), badge: $('badge') };
+const timeEls = { clock: $('clock'), date: $('date'), tz: $('tzLabel'), badge: $('badge') };
 const dayTag = n => n ? `<span class="dtag" title="${n > 0 ? 'the next' : 'the previous'} day">${n > 0 ? '+' : '−'}${Math.abs(n)} d</span>` : '';
 function updateHud() {
   const d = new Date(state.simMs), utc = timeMode !== 'Local';
@@ -421,7 +420,6 @@ function updateHud() {
   timeEls.date.textContent = fmtDate(d, utc);
   const julian = civil(d, utc).julian ? 'Julian calendar' : '';
   timeEls.tz.textContent = [timeMode === 'Local' ? tzName(d) : timeMode === 'Scientific' ? 'UTC' : '', julian].filter(Boolean).join(' · ');
-  timeEls.rel.textContent = fmtRelative(state.simMs - Date.now());
   // nothing to say while inside the validated range
   timeEls.badge.hidden = state.simMs >= VALID_FROM && state.simMs < VALID_TO;
   if (timeMode === 'Scientific' && snap) {

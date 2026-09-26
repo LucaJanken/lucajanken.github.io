@@ -166,6 +166,8 @@ input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; b
 .lbl { position: absolute; left: 0; top: 0; display: none; pointer-events: auto; border: 0; padding: 2px 5px; border-radius: 2px; background: rgba(4, 5, 10, 0.5); font: 400 10px/14px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; opacity: 0.8; will-change: transform; }
 .lbl:hover, .lbl.sel { opacity: 1; background: rgba(4, 5, 10, 0.78); }
 .lbl-moon { font-size: 9px; }
+/* on touchscreens a drag that starts on a label still turns the view; taps on labels are picked in main.js */
+@media (hover: none) { .lbl { pointer-events: none; } }
 .hover-ring { position: absolute; left: 0; top: 0; border: 1px solid; border-radius: 50%; opacity: 0; pointer-events: none; transition: opacity 0.15s; box-shadow: 0 0 6px rgba(255,255,255,0.12), inset 0 0 6px rgba(255,255,255,0.08); }
 .hover-ring.on { opacity: 0.55; }
 

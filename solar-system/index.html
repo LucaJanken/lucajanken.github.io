@@ -11,7 +11,7 @@
 </head>
 <body>
 <div id="app">
-  <div id="stage" aria-label="3D view of the Solar System. Drag to rotate, scroll to zoom; on a touchscreen, drag with one finger to move, two to turn, and pinch to zoom." role="img"></div>
+  <div id="stage" aria-label="3D view of the Solar System. Drag to turn the view, scroll or pinch to zoom." role="img"></div>
   <div id="labels"><div class="hover-ring" id="hoverRing"></div></div>
 
   <header class="time" data-hud>
@@ -42,7 +42,7 @@
       <button type="button" class="tog" data-toggle="labels" aria-pressed="true">Labels</button>
       <button type="button" class="tog" data-toggle="moons" aria-pressed="true">Moons</button>
       <button type="button" class="tog" data-toggle="stars" aria-pressed="true">Stars</button>
-      <button type="button" class="tog" data-toggle="lock" aria-pressed="true" title="Lock the camera to the selected body, so it travels with it">Lock</button>
+      <button type="button" class="tog" data-toggle="lock" aria-pressed="true" title="Lock the camera to the selected body, so it travels with it. Unlock it to move the view sideways.">Lock</button>
       <button type="button" class="tog" data-toggle="axis" aria-pressed="true" title="Show the selected body's rotation axis">Axis</button>
       <div class="scale-box">
         <div class="scale-ends"><button type="button" id="scaleMin">Overview</button><button type="button" id="scaleMax">True scale</button></div>
@@ -108,8 +108,8 @@
 
     <h3>Getting around</h3>
     <ul>
-      <li>Drag to rotate, scroll to zoom, right-drag, shift-drag or arrow keys to pan. On a touchscreen, drag with one finger to move the view, with two to turn it, and pinch to zoom.</li>
-      <li>Click a body, its label, or its name in the list to fly to it (the count next to a planet opens the list of its moons). The camera glides over without changing your zoom or viewing angle (it only backs off if it would end up inside the body). Choose it again to zoom in or out to a comfortable view of it, turned toward its sunlit side if you were looking at its night side (the Sun: of the whole Solar System). <b>Lock</b> keeps the camera travelling with the selected body; unlock it to let the body drift away, and lock again to catch up with it.</li>
+      <li>Drag (one finger on a touchscreen) to turn the view around the selected body, scroll or pinch to zoom. With <b>Lock</b> off, right-drag, shift-drag, the arrow keys or a two-finger drag move the view sideways; while locked the view stays on the body, so a pinch only zooms.</li>
+      <li>Click a body, its label, or its name in the list to fly to it (the count next to a planet opens the list of its moons). The camera glides over without changing your zoom or viewing angle (it only backs off if it would end up inside the body). Choose it again to fly in to a comfortable view of it, turned toward its sunlit side if you were looking at its night side, and a third time to fly back out. <b>Lock</b> keeps the camera travelling with the selected body; unlock it to let the body drift away, and lock again to catch up with it.</li>
       <li>The speed slider runs time forward to the right and backward to the left, from real time next to the middle to years per second at the ends; the notch in the middle stops it. <b>Play</b> and <b>Pause</b> keep the chosen speed. The arrows beside them step time back or forward by an hour, a day, a month or a year: tap the step between them to change it. Days, months and years keep the time of day, so Earth turns the same face to the Sun. In the middle notch the speed reads 0×; paused with the button, it shows (dimmed) the speed Play resumes at.</li>
       <li>Type a date and press <b>OK</b> (or <kbd>Enter</kbd>) to go there, in the time the clock shows (local or UTC); <kbd>Esc</kbd> puts back the current one.</li>
       <li>The button above the clock switches it between <b>Local</b> time, <b>UTC</b>, and <b>Scientific</b>, which adds the astronomical time scales: UT (Earth’s rotation, UT1), TT (the uniform time the planets move by), ΔT = TT − UT and the Julian Date. The model takes UTC to be UT1; the two never differ by more than 0.9 s.</li>

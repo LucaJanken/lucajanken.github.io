@@ -14,10 +14,11 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
 - The clock shows Local time, UTC, or Scientific (UTC with UT, TT, ΔT and the Julian Date); the
   choice is remembered. An Extrapolated tag appears outside the validated 1800–2050.
 - Selecting a body glides the camera over to it without changing zoom or viewing angle (it only
-  backs off if it would end up inside the body). Selecting it again zooms to a comfortable view of
-  it, or of the whole Solar System for the Sun. Lock keeps the camera travelling with the
+  backs off if it would end up inside the body). Selecting it again flies in to a comfortable view
+  of its lit side; a third time flies back out. Lock keeps the camera travelling with the
   selected body; locking again after drifting catches up with it. Axis shows its rotation axis.
-- On a touchscreen, one finger moves the view, two fingers turn it and pinch to zoom. The phone
+- Dragging (one finger) turns the view around the focus; scroll or pinch zooms. Moving the view
+  sideways (right- or shift-drag, arrow keys, two-finger drag) works only with Lock off. The phone
   menu stays open while bodies are picked from it; a planet's moon count opens its moons in the
   list. The information panel folds down to the body's name with its – button (remembered).
 - The view state, including time, speed and direction, is kept in the URL by Share view

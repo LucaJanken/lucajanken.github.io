@@ -17,8 +17,9 @@ export class View {
     this.controls.dampingFactor = 0.08;
     this.controls.zoomSpeed = 1.2;
     this.controls.listenToKeyEvents(window);
-    // touch works like a map: one finger moves the view, two fingers turn it and pinch to zoom
-    this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+    // one finger turns the view about the focus (the stars wheel past, so it reads as moving
+    // around it), two fingers pinch to zoom and, with Lock off, move the view sideways
+    this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this.focus = 'Sun';
     this.lock = true;
     this.origin = [0, 0, 0];
@@ -116,6 +117,9 @@ export class View {
       c.position.copy(t).addScaledVector(dir, dist);
       if (k >= 1) this.tween = null;
     }
+    // Moving the view sideways (two fingers, right- or shift-drag, arrow keys) would take it off
+    // the body it is locked to, so only an unlocked camera can; a pinch then only zooms.
+    this.controls.enablePan = !this.lock;
     const nearFocus = t.length() < focusRadius * 0.5;
     this.controls.minDistance = nearFocus ? focusRadius * 1.02 : 1e-9;
     this.controls.maxDistance = maxDist;

@@ -97,11 +97,11 @@ const drawnRadius = name => scale.size(meanRadius(BY_NAME[name]));
 const overviewDistance = () => 2.1 * scale.helio(30.1 * AU_KM);
 // largest drawn radius (equatorial, for flattened planets)
 const drawnExtent = name => { const d = BY_NAME[name]; return drawnRadius(name) * Math.max(...d.shape) / meanRadius(d); };
+const focusDistance = name => name === 'Sun' ? overviewDistance() : closeDistance(name);
 // A comfortable distance to look at a body from: it spans about 40% of the narrower side of the
 // part of the screen the panels leave free (so a phone held upright does not crop it), Saturn's
-// rings included. For the Sun, the whole Solar System.
-function focusDistance(name) {
-  if (name === 'Sun') return overviewDistance();
+// rings included.
+function closeDistance(name) {
   const d = BY_NAME[name], W = stage.clientWidth || 1, H = stage.clientHeight || 1;
   const extent = Math.max(drawnExtent(name), d.rings && d.rings.outerKm ? drawnRadius(name) * d.rings.outerKm / meanRadius(d) : 0);
   const side = Math.min(W, H, free.bottom - free.top);
@@ -163,13 +163,28 @@ function select(name, fly) {
   if (fly) {
     camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
     const R = drawnExtent(name);
-    // choosing the selected body again zooms in or out to a comfortable view of it, from the same side
-    if (again) view.setFocus(name, disp, { dist: focusDistance(name), dir: litSide(name) });
+    if (again) closeLook(name);
     // otherwise only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
     else view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
   }
   bodies.setAxis(name);
   hudDirty = true;
+}
+
+// Choosing the selected body again flies in to a comfortable view of it, from its lit side; once
+// there, choosing it again flies back out to where the camera was before (or to the distance of the
+// overview, if that was about as close).
+let zoomBack = null;   // { name, dist }: the distance to return to
+function closeLook(name) {
+  const close = closeDistance(name), d = view.distance();
+  if (view.focus === name && d < close * 1.5) {
+    const back = zoomBack && zoomBack.name === name && zoomBack.dist > close * 2 ? zoomBack.dist : Math.max(overviewDistance(), close * 4);
+    zoomBack = null;
+    view.setFocus(name, disp, { dist: back });
+  } else {
+    zoomBack = { name, dist: d };
+    view.setFocus(name, disp, { dist: close, dir: litSide(name) });
+  }
 }
 
 // ---------------------------------------------------------------- scale changes
@@ -189,7 +204,7 @@ function applyScale(s) {
   let factor;
   if (f !== 'Sun' && cd < 12 * before.r) factor = drawnRadius(f) / before.r;
   else factor = scale.helio(before.d) / cd;
-  if (Number.isFinite(factor) && factor > 0) view.rescale(factor);
+  if (Number.isFinite(factor) && factor > 0) { view.rescale(factor); if (zoomBack) zoomBack.dist *= factor; }
   $('scale').value = s;
   $('scaleMin').classList.toggle('on', s === 0);
   $('scaleMax').classList.toggle('on', s === 1);
@@ -681,8 +696,10 @@ function wire() {
   cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; setMenu(false); });
   cv.addEventListener('pointerup', e => {
     if (!down || Math.abs(e.clientX - down[0]) + Math.abs(e.clientY - down[1]) > 5) return;
-    const r = cv.getBoundingClientRect(), best = pick(e.clientX - r.left, e.clientY - r.top);
-    if (best) select(best.name, true);
+    // on touchscreens the labels let touches through to the view (see style.css), so a tap on one
+    // is found here
+    const r = cv.getBoundingClientRect(), name = labels.at(e.clientX, e.clientY) || (pick(e.clientX - r.left, e.clientY - r.top) || {}).name;
+    if (name) select(name, true);
   });
   // hover: a faint ring and a pointer cursor say that bodies can be clicked
   cv.addEventListener('pointermove', e => {

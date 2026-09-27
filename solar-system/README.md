@@ -12,6 +12,9 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
   calendar month or a calendar year; tapping the step between them changes it (remembered).
 - The calendar button goes to a date: on phones through the system's own picker (confirming there
   applies it), on computers through a small popover with Go (or Enter; Esc closes it).
+- Eclipses & transits lists solar and lunar eclipses and transits of Mercury and Venus, opening at
+  the displayed date and loading more as it is scrolled either way (searched in a worker). The kinds
+  shown can be switched off and on (remembered); choosing an event goes there.
 - The clock shows Local time, UTC, or Scientific (UTC with UT, TT, ΔT and the Julian Date); the
   choice is remembered. An Extrapolated tag appears outside the validated 1800–2050.
 - Selecting a body glides the camera over to it without changing zoom or viewing angle (it only
@@ -32,10 +35,11 @@ Plain HTML, CSS and JavaScript modules: no build step, no framework. GitHub Page
 index.html, css/style.css
 js/astro/       the physics, with no graphics:
   ephemeris.js    positions, velocities, spin axes, osculating orbits (one frame: J2000 ecliptic, km)
-  satellites.js   Titan, Phobos, Deimos: orbit models fitted to JPL Horizons
+  satellites.js   Titan, Triton, Charon, Phobos, Deimos: orbit models fitted to JPL Horizons
   rotation.js     IAU rotation models of the moons (generated from NAIF pck00011)
   deltat.js       ΔT = TT − UT1 from USNO/IERS (generated)
-  events.js       eclipse and transit search
+  events.js       eclipse and transit search, as a timeline that grows both ways
+  events-worker.js  runs those searches off the main thread for the events list
 js/data/        bodies.js: physical data and descriptions, with sources
 js/scene/       three.js rendering
   scale.js        overview ↔ true-scale mapping; ecliptic → scene axes
@@ -61,7 +65,7 @@ tests/          accuracy checks against JPL Horizons and NASA's eclipse canon
 
 - every body against JPL Horizons (DE440 and satellite ephemerides) over 1800–2050
   (planets < 25″ as seen from Earth, Moon < 21 km, Galilean moons < 900 km, Titan < 850 km,
-  Phobos < 20 km, Deimos < 56 km);
+  Triton < 100 km, Charon < 1 km, Phobos < 20 km, Deimos < 56 km);
 - the greatest-eclipse point and time of four solar eclipses (1919, 1999, 2024, 2027), all within
   5 km and 5 s of NASA's *Five Millennium Canon*;
 - Saturn's ring-plane crossing of 23 Mar 2025, the Laplace resonance of Io, Europa and Ganymede,
@@ -93,7 +97,12 @@ Astronomy Engine (Don Cross, MIT) · three.js (MIT) · JPL Horizons · NASA NAIF
 Yale Bright Star Catalogue (CDS) · Milky Way from NASA/GSFC Scientific Visualization Studio, Deep Star
 Maps 2020 (Hipparcos-2, Tycho-2, Gaia DR2: ESA/Gaia/DPAC) · planet maps from Solar System Scope
 (CC BY 4.0) · moon maps from USGS Astrogeology / NASA / JPL (Europa from the 500 m Voyager–Galileo
-mosaic) and Pluto from NASA / JHUAPL / SwRI (public domain) · IBM Plex (OFL).
+mosaic; Charon's New Horizons and Triton's Voyager 2 global mosaics) and Pluto from NASA / JHUAPL /
+SwRI (public domain) · IBM Plex (OFL).
 
 The Milky Way map was made from `milkyway_2020_4k.exr` (svs.gsfc.nasa.gov/4851): halved to
 2048 × 1024, a floor of 0.002 subtracted, the 99.9th percentile (0.4) scaled to white, sRGB-encoded.
+
+Charon and Triton were box-averaged to 2048 × 1024 from the USGS 300 m and 600 m mosaics (Charon
+turned to put longitude 0 in the middle; Triton's orange-filter channel only, tinted in `bodies.js`),
+with the unmapped polar cap filled with the mean of the mapped surface.

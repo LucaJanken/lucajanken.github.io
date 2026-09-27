@@ -2,7 +2,8 @@
 //
 // Sources
 //   radii        IAU WGCCRE 2015 report (Archinal et al. 2018), equatorial / polar, km
-//   masses       NASA GSFC planetary & satellite fact sheets (2024 revision)
+//   masses       NASA GSFC planetary & satellite fact sheets (2024 revision); Charon's from its GM,
+//                105.88 km³/s² (Brozović et al. 2015)
 //   periods      NASA GSFC fact sheets; Saturn's rotation from ring seismology (Mankovich et al. 2019)
 //   obliquities  NASA GSFC fact sheets (angle between spin axis and orbit normal)
 //   aKm          moons' mean orbital radius (NASA GSFC); used only to lay out the overview
@@ -142,11 +143,23 @@ export const BODIES = [
     desc: 'Its winds are the fastest measured on any planet, over 2,000 km/h. In 1846 it was found by mathematics: its position was predicted from its tiny pull on Uranus before anyone had seen it.',
   },
   {
+    name: 'Triton', type: 'Moon of Neptune', parent: 'Neptune', color: '#c9b9aa',
+    shape: [1352.6, 1352.6, 1352.6], massKg: 2.139e22, periodD: 5.876854, aKm: 354759, synchronous: true,
+    tex: { map: 'triton.jpg', tint: '#f2e3d6' }, representative: 'Voyager 2 mapped only part of it in 1989, mostly the southern hemisphere, in colours outside the visible; the map shows it in grey, tinted with Triton’s overall colour, and the unmapped north in plain grey',
+    desc: 'The only large moon that orbits backwards, against its planet’s spin: almost certainly a Kuiper Belt world that Neptune captured. Voyager 2 saw plumes of nitrogen rising 8 km above its frozen surface in 1989. Tides are drawing it slowly inward.',
+  },
+  {
     name: 'Pluto', type: 'Dwarf planet', parent: 'Sun', color: '#b8a795',
     shape: [1188.3, 1188.3, 1188.3], massKg: 1.303e22,
     periodD: 90560, rotationH: -153.29, solarDayH: -153.28, obliquity: 122.53,
     tex: { map: 'pluto.jpg' }, representative: 'south of ~30°S was in polar night during the 2015 flyby and is unmapped',
     desc: 'A Kuiper Belt dwarf planet with nitrogen-ice glaciers and a heart-shaped plain, revealed by New Horizons in 2015. It orbits the Sun twice for every three orbits of Neptune, which keeps the two from ever colliding.',
+  },
+  {
+    name: 'Charon', type: 'Moon of Pluto', parent: 'Pluto', color: '#9f978e', photometry: 'lunar',
+    shape: [606.0, 606.0, 606.0], massKg: 1.586e21, periodD: 6.3872273, aKm: 19596, synchronous: true,
+    tex: { map: 'charon.jpg' }, representative: 'shown in grey; south of ~30°S was in polar night during the 2015 flyby and is unmapped',
+    desc: 'Half as wide as Pluto and an eighth of its mass, so the two circle a point in the space between them, 2,100 km outside Pluto, every 6.4 days, each always turning the same face to the other. Its reddish north pole is stained by gas escaping from Pluto.',
   },
 ];
 
@@ -163,6 +176,10 @@ export const OCCLUDERS = {
   Io: ['Jupiter'], Europa: ['Jupiter'], Ganymede: ['Jupiter'], Callisto: ['Jupiter'],
   Saturn: ['Titan'],
   Titan: ['Saturn'],
+  Neptune: ['Triton'],
+  Triton: ['Neptune'],
+  Pluto: ['Charon'],
+  Charon: ['Pluto'],
 };
 
 // Uranus's narrow rings (French et al. 1991): radius km, width km, normal optical depth.

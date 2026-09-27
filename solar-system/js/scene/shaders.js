@@ -7,13 +7,17 @@
 
 import * as THREE from '../../vendor/three.min.js';
 
-// The solar disc is limb darkened, I(μ) = 1 − u(1 − μ) with u ≈ 0.6 in visible light (Cox 2000).
-// It is represented as K nested uniform discs whose weights reproduce that profile annulus by
-// annulus, so partial phases dim in the right way (a uniform disc overstates the light loss at 2nd
-// and 3rd contact).
-const K = 6, U_LD = 0.6;
-const I = k => { const r = (k - 0.5) / K; return 1 - U_LD * (1 - Math.sqrt(1 - r * r)); };
-const LD_W = Array.from({ length: K }, (_, k) => I(k + 1) - (k + 1 < K ? I(k + 2) : 0));
+// The solar disc is limb darkened, more strongly in blue than in red (see sunMaterial below, whose
+// model this shares: a grey Eddington atmosphere, I(μ, λ) ∝ B_λ(T(⅔μ))). It is represented as K
+// nested uniform discs whose weights reproduce that profile annulus by annulus, per colour channel,
+// so partial phases dim in the right way (a uniform disc overstates the light loss at 2nd and 3rd
+// contact), and the light left in a deep penumbra, which comes from the limb, is the limb's warmer colour.
+const TEFF = 5772;
+const X_RGB = [23587, 26160, 30942];   // hc/(λk) in kelvin for the sRGB channels (610, 550, 465 nm)
+const limb = (mu, x) => (Math.exp(x / TEFF) - 1) / (Math.exp(x / (TEFF * Math.pow(0.5 * mu + 0.5, 0.25))) - 1);
+const K = 6;
+const I = k => { const r = (k - 0.5) / K, mu = Math.sqrt(1 - r * r); return X_RGB.map(x => limb(mu, x)); };
+const LD_W = Array.from({ length: K }, (_, k) => I(k + 1).map((v, c) => v - (k + 1 < K ? I(k + 2)[c] : 0)));
 
 const COMMON = /* glsl */`
 varying vec3 vOmRel;
@@ -24,18 +28,24 @@ uniform vec4 uOccPole[4];  // occluder pole (unit) and equatorial / polar radius
 uniform int uOccN;
 uniform int uAtmoIdx;
 uniform vec3 uAtmoLight;
+uniform float uShadowLift;
 uniform float uRingOn;
 uniform vec3 uRingN;
 uniform float uRingIn;
 uniform float uRingOut;
 uniform sampler2D uRingTex;
 
-// Partial shadows are drawn a little darker than photometric, cov^0.7 instead of cov, because on a
-// screen a surface at half light still looks almost fully lit and the penumbra of a solar eclipse,
-// thousands of km across, would be invisible. Only the partial phase changes: where a shadow
-// begins (cov = 0) and the umbra (cov = 1) are exact, so eclipse geometry and timing are not affected.
-const float SH_GAMMA = 0.7;
-const float OM_W[${K}] = float[${K}](${LD_W.map(w => w.toFixed(8)).join(', ')});
+// How dark a partial shadow is drawn. Photometrically the light left is 1 − cov (cov: the fraction
+// of the Sun's light hidden), but on a screen, after the sRGB encoding, a surface at half light still
+// looks almost fully lit. For a small body's shadow on a large one, the Moon's on Earth, the
+// penumbra, thousands of km across, then fades into the day side and leaves only the umbra, ~100 km,
+// as a black dot. On such bodies (uShadowLift = 1) it is the displayed brightness that falls as
+// 1 − cov, an even darkening from the penumbra's edge to the umbra, as a camera exposed for the day
+// side and viewed on a screen shows it; in linear light that is (1 − cov)^2.2. A large body's shadow
+// on a small one (Earth's on the Moon) needs no help and stays photometric, which keeps the umbra's
+// edge crisp. Where a shadow begins (cov = 0) and the umbra (cov = 1) are the same either way, so
+// eclipse geometry and timing are not affected.
+const vec3 OM_W[${K}] = vec3[${K}](${LD_W.map(w => `vec3(${w.map(x => x.toFixed(8)).join(', ')})`).join(', ')});
 
 // overlap area of two discs of radii R, r at centre distance d (flat-sky, angles in radians)
 float omLens(float R, float r, float d) {
@@ -53,9 +63,10 @@ float omLens(float R, float r, float d) {
 // with the Sun close to the occluder's equatorial plane.
 vec3 omStretch(vec3 v, vec4 pk) { return v + (pk.w - 1.0) * dot(v, pk.xyz) * pk.xyz; }
 
-// fraction of the limb-darkened Sun's light hidden by a disc of angular radius r at separation d
-float omCover(float Rs, float r, float d) {
-  float hidden = 0.0, total = 0.0;
+// fraction of the limb-darkened Sun's light hidden by a disc of angular radius r at separation d,
+// per colour channel
+vec3 omCover(float Rs, float r, float d) {
+  vec3 hidden = vec3(0.0), total = vec3(0.0);
   for (int k = 0; k < ${K}; k++) {
     float Rk = Rs * float(k + 1) / ${K}.0;
     hidden += OM_W[k] * omLens(Rk, r, d);
@@ -88,11 +99,12 @@ vec3 omSunlight(vec3 p) {
     // atan2 of |cross| and dot keeps full precision for nearly aligned vectors, where acos(dot) fails
     float sep = atan(length(cross(nSi, nO)), dot(nSi, nO));
     if (sep >= aS + aO) continue;
-    float cov = pow(omCover(aS, aO, sep), SH_GAMMA);
+    vec3 lit = max(1.0 - omCover(aS, aO, sep), 0.0);
+    lit = mix(lit, pow(lit, vec3(2.2)), uShadowLift);
     // inside Earth's umbra the Moon is lit only by sunlight refracted through Earth's atmosphere,
     // which is reddened by Rayleigh scattering: the copper "blood moon"
     vec3 through = atmo ? uAtmoLight : vec3(0.0);
-    light *= vec3(1.0 - cov) + cov * through;
+    light *= through + (1.0 - through) * lit;
   }
   if (uRingOn > 0.5) {
     // shadow of a ring system in the planet's equatorial plane: follow the ray toward the Sun to
@@ -122,6 +134,7 @@ export function makeShadowUniforms() {
     uOccN: { value: 0 },
     uAtmoIdx: { value: -1 },
     uAtmoLight: { value: new THREE.Color(0.11, 0.030, 0.009) },
+    uShadowLift: { value: 0 },
     uRingOn: { value: 0 },
     uRingN: { value: new THREE.Vector3(0, 1, 0) },
     uRingIn: { value: 0 },
@@ -228,7 +241,6 @@ export function patchBodyMaterial(mat, u, opts = {}) {
 // optical depth τ = ⅔μ (Eddington–Barbier), so I(μ, λ) ∝ B_λ(T(⅔μ)). At 550 nm this gives an
 // edge-to-centre ratio of 0.42 (linear coefficient u ≈ 0.58; measured ≈ 0.6), weaker in red and
 // stronger in blue, as observed.
-const TEFF = 5772;
 const CENTRE_RGB = [1.0, 0.95, 0.9];   // a 5772 K photosphere is very slightly warm white in sRGB
 
 export function sunMaterial() {
@@ -247,8 +259,7 @@ export function sunMaterial() {
       #include <common>
       #include <logdepthbuf_pars_fragment>
       varying vec3 vN; varying vec3 vV;
-      // hc/(λk) in kelvin for the effective wavelengths of the sRGB channels (610, 550, 465 nm)
-      const vec3 X = vec3(23587.0, 26160.0, 30942.0);
+      const vec3 X = vec3(${X_RGB.map(x => x.toFixed(1)).join(', ')});
       void main() {
         #include <logdepthbuf_fragment>
         float mu = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);

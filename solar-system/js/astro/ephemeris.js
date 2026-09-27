@@ -9,7 +9,7 @@
 //   planets, Pluto      astronomy-engine: VSOP87 (truncated) and a numerically integrated Pluto
 //   Moon                astronomy-engine: Brown's theory (Improved Lunar Ephemeris, 1954), via Montenbruck & Pfleger
 //   Galilean moons      astronomy-engine: Lainey's L1.2 theory
-//   Titan, Phobos, Deimos  fits to JPL Horizons (see satellites.js)
+//   Titan, Triton, Charon, Phobos, Deimos  fits to JPL Horizons (see satellites.js)
 //   spin axes           IAU WGCCRE 2015: astronomy-engine RotationAxis for the Sun, Moon and planets,
 //                       NAIF pck00011 for the other moons (rotation.js); Earth: precession, nutation, GAST
 //   time scales         UT → TT via ΔT: USNO/IERS measurements and predictions 1657–2033 (deltat.js),
@@ -78,6 +78,15 @@ function earthAxes(time) {
   return { pole: eqjToEcl([pl.x, pl.y, pl.z]), prime: eqjToEcl([pm.x, pm.y, pm.z]) };
 }
 
+// astronomy-engine's Pluto is the centre of mass of Pluto and Charon (it matches JPL's Pluto system
+// barycentre to 1 km, and misses Pluto's own centre by a 6.4-day wobble). Charon is an eighth of
+// Pluto's mass, so Pluto itself circles that point 2,100 km away, farther than its own radius: both
+// bodies are placed about it, and the barycentre is kept for Pluto's orbit around the Sun.
+function plutoAboutBarycentre(bodies, charonRel) {
+  const bary = bodies.Pluto, q = BY_NAME.Charon.massKg / (BY_NAME.Pluto.massKg + BY_NAME.Charon.massKg);
+  bodies.Pluto = { pos: sub(bary.pos, scale(charonRel.pos, q)), vel: sub(bary.vel, scale(charonRel.vel, q)), bary };
+}
+
 /**
  * All bodies at one instant.
  * @param {Date|number|A.AstroTime} when  UTC instant (Date or ms), or an AstroTime
@@ -99,6 +108,7 @@ export function snapshot(when) {
   for (const name of FITTED) {
     const s = satelliteState(name, time.tt);
     const rel = { pos: eqjToEcl(s.pos), vel: eqjToEcl(s.vel) };
+    if (name === 'Charon') plutoAboutBarycentre(bodies, rel);
     const par = bodies[BY_NAME[name].parent];
     bodies[name] = { pos: add(par.pos, rel.pos), vel: add(par.vel, rel.vel), rel };
   }
@@ -153,8 +163,10 @@ export function orbitState(snap, name) {
   }
   if (BARYCENTRIC.has(name)) {
     const sun = snap.sunBary || (snap.sunBary = stateKm(A.BaryState(A.Body.Sun, snap.time)));
-    const b = snap.bodies[name];
-    return { pos: sub(b.pos, scale(sun.pos, -1)), vel: sub(b.vel, scale(sun.vel, -1)), mu: GM_SYSTEM, offset: scale(sun.pos, -1), about: 'the Solar System’s barycentre' };
+    // Pluto: the orbit of the Pluto–Charon pair's centre of mass, shifted by Pluto's offset from it
+    // (2,100 km) so that it runs through Pluto's centre
+    const b = snap.bodies[name], c = b.bary || b;
+    return { pos: add(c.pos, sun.pos), vel: add(c.vel, sun.vel), mu: GM_SYSTEM, offset: add(scale(sun.pos, -1), sub(b.pos, c.pos)), about: 'the Solar System’s barycentre' };
   }
   if (name === 'Earth') {
     const emb = snap.emb || (snap.emb = stateKm(A.HelioState(A.Body.EMB, snap.time)));

@@ -4,6 +4,9 @@
 //   node tests/fit-satellites.mjs 606 15.945448 x 0.0334442282     # Titan  (id, period d, -, planet mean motion °/d)
 //   node tests/fit-satellites.mjs 401 0.31891023 nd 0.5240207766   # Phobos ('nd': also fit tidal acceleration)
 //   node tests/fit-satellites.mjs 402 1.2624407 x 0.5240207766     # Deimos
+//   POLE=119.4,-43.5 node tests/fit-satellites.mjs 801 5.876854 x 0.0059811   # Triton (seed pole: its orbit
+//                                                   # sweeps around Neptune's pole in ~700 years)
+//   node tests/fit-satellites.mjs 901 6.3872273 x 0.0039753        # Charon
 //
 // Levenberg–Marquardt on all 3-D positions, seeded from osculating elements. Prints the RMS and
 // maximum error and the parameters (angles in degrees, rates per day; reduce L0, node0, peri0 mod 360).
@@ -19,7 +22,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 // 1. Laplace pole guess = mean orbit normal
 let hs = [0, 0, 0]; data.forEach(d => { const h = norm(cross(d.r, d.v)); hs = hs.map((x, i) => x + h[i]); });
-const p0 = norm(hs);
+const p0 = process.env.POLE ? (([ra, de]) => [Math.cos(de) * Math.cos(ra), Math.cos(de) * Math.sin(ra), Math.sin(de)])(process.env.POLE.split(',').map(x => +x * D)) : norm(hs);
 const ra0 = Math.atan2(p0[1], p0[0]), de0 = Math.asin(p0[2]);
 function frame(ra, de) { // Laplace frame: x = ascending node on ICRF equator, z = pole
   const z = [Math.cos(de) * Math.cos(ra), Math.cos(de) * Math.sin(ra), Math.sin(de)];
@@ -41,7 +44,7 @@ function model(p, t) {
   return [0, 1, 2].map(k => fx[k] * X + fy[k] * Y + fz[k] * Z);
 }
 // 2. seed from osculating elements in the Laplace frame, with unwrapped linear trends
-const GM = { '606': 37931207.7, '401': 42828.37, '402': 42828.37 }[key];
+const GM = { '606': 37931207.7, '401': 42828.37, '402': 42828.37, '801': 6835099.97, '901': 975.5 }[key];
 const [fx, fy, fz] = frame(ra0, de0);
 const loc = a => [dot(a, fx), dot(a, fy), dot(a, fz)];
 const osc = data.map(d => {

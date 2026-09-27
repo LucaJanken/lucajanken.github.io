@@ -14,12 +14,13 @@ num = re.compile(r'^[-+]?[0-9.]+([ED][-+]?[0-9]+)?$', re.I)
 vals = {m.group(1): [float(x.upper().replace('D', 'E')) for x in m.group(2).split() if num.match(x)]
         for m in re.finditer(r'(\w+)\s*=\s*\(([^)]*)\)', data)}
 
-BODIES = {'Phobos': 401, 'Deimos': 402, 'Io': 501, 'Europa': 502, 'Ganymede': 503, 'Callisto': 504, 'Titan': 606}
+BODIES = {'Phobos': 401, 'Deimos': 402, 'Io': 501, 'Europa': 502, 'Ganymede': 503, 'Callisto': 504, 'Titan': 606,
+          'Triton': 801, 'Charon': 901}
 systems, models = {}, {}
 for name, naif in BODIES.items():
     sysid = naif // 100
     if sysid not in systems:
-        ang = vals[f'BODY{sysid}_NUT_PREC_ANGLES']
+        ang = vals.get(f'BODY{sysid}_NUT_PREC_ANGLES', [])   # (none for Pluto's system)
         deg = int(vals.get(f'BODY{sysid}_MAX_PHASE_DEGREE', [1])[0])
         systems[sysid] = [ang[i:i + deg + 1] for i in range(0, len(ang), deg + 1)]
     g = lambda k, n=3: (vals.get(f'BODY{naif}_{k}', []) + [0.0] * n)[:n] if n else vals.get(f'BODY{naif}_{k}', [])
@@ -36,7 +37,7 @@ out = f"""// IAU rotation models (WGCCRE 2015, Archinal et al. 2018) of the moon
 //   W = pm0 + pm1 d + pm2 d² + Σ npm_k sin θ_k     d: days TDB since J2000
 //   θ_k = c0 + c1 T (+ c2 T²)
 
-// θ_k coefficients per planet system (NAIF system id: 4 Mars, 5 Jupiter, 6 Saturn)
+// θ_k coefficients per planet system (NAIF system id: 4 Mars, 5 Jupiter, 6 Saturn, 8 Neptune, 9 Pluto)
 export const ANGLES = {json.dumps({str(k): v for k, v in systems.items()})};
 
 export const MODELS = {{

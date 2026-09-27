@@ -152,6 +152,8 @@ export class BodyViews {
     const occ = OCCLUDERS[def.name] || [];
     u.uOccN.value = occ.length;
     u.uAtmoIdx.value = occ.findIndex(n => BY_NAME[n].atmosphere && BY_NAME[n].atmosphere.refractsUmbra);
+    // shadows of smaller bodies (moons on their planet) are darkened on the display scale (shaders.js)
+    u.uShadowLift.value = occ.length && occ.every(n => meanRadius(BY_NAME[n]) < v.Rmean) ? 1 : 0;
     v.occ = occ;
     return v;
   }

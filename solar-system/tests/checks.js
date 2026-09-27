@@ -13,7 +13,7 @@ const DEG = 180 / Math.PI, ARCSEC = 206264.806;
 // tolerances: the "eye can never tell" budget (1′ on the sky, ~1 px at full-screen zooms)
 const LIMITS = {
   planetsFromEarthArcsec: 30, moonKm: 30,
-  Io: 1000, Europa: 1000, Ganymede: 1000, Callisto: 1000, Titan: 1000, Phobos: 25, Deimos: 70,
+  Io: 1000, Europa: 1000, Ganymede: 1000, Callisto: 1000, Titan: 1000, Triton: 150, Charon: 5, Phobos: 25, Deimos: 70,
 };
 
 export function horizonsChecks(fixture) {
@@ -181,9 +181,11 @@ export function deltaTChecks() {
 // optical libration of an eccentric orbit, ±2e radians (Phobos adds a forced libration of ~1.1°).
 // A sign or frame error would show up as tens of degrees.
 export function rotationChecks() {
-  const ecc = { Io: 0.0041, Europa: 0.0094, Ganymede: 0.0013, Callisto: 0.0074, Titan: 0.0288, Phobos: 0.0151, Deimos: 0.0003 };
-  // Deimos: its IAU W carries 2.7° long-period terms, which the orbit fit follows to ~0.6°
-  const extra = { Phobos: 1.3, Ganymede: 0.2, Deimos: 0.7 };
+  const ecc = { Io: 0.0041, Europa: 0.0094, Ganymede: 0.0013, Callisto: 0.0074, Titan: 0.0288, Triton: 0.0002, Charon: 0.0002, Phobos: 0.0151, Deimos: 0.0003 };
+  // Deimos: its IAU W carries 2.7° long-period terms, which the orbit fit follows to ~0.6°.
+  // Charon: its IAU spin rate is 3e-6 °/day slower than the orbit fitted to PLU058, so the meridian
+  // drifts 0.16° a century off the direction of Pluto (±0.3° over the 180 years sampled)
+  const extra = { Phobos: 1.3, Ganymede: 0.2, Deimos: 0.7, Charon: 0.3 };
   const st = Object.fromEntries(Object.keys(ecc).map(n => [n, { sum: 0, min: 1e9, max: -1e9, n: 0 }]));
   for (let k = 0; k < 600; k++) {
     const s = snapshot(Date.UTC(1850, 0, 1) + k * 0.3047 * 365.25 * 86400000);

@@ -1,11 +1,13 @@
-// Orbits of Titan, Phobos and Deimos, which astronomy-engine does not provide.
+// Orbits of Titan, Triton, Charon, Phobos and Deimos, which astronomy-engine does not provide.
 //
 // Each is a precessing Keplerian ellipse in its own Laplace plane, with a few long-period terms in
 // mean longitude (solar perturbation at the planet's orbital frequency, and a term in the node).
-// The parameters were least-squares fitted to JPL Horizons state vectors (SAT441 for Titan, MAR097
-// for the Martian moons) sampled every 37 days over 1800–2050. Maximum position error over that
-// span: Phobos 20 km, Deimos 56 km, Titan 900 km (0.04° of its orbit). The fit script lives in
-// tests/fit-satellites.mjs.
+// The parameters were least-squares fitted to JPL Horizons state vectors (SAT441 for Titan, NEP097
+// for Triton, PLU058 for Charon, MAR097 for the Martian moons) sampled every 37 days over 1800–2050.
+// Maximum position error over that span: Phobos 20 km, Deimos 56 km, Titan 900 km (0.04° of its
+// orbit), Triton 96 km, Charon 1 km. Triton orbits backwards: its fitted Laplace pole points away
+// from Neptune's north pole, about which the orbit swings every ~690 years. Charon's position is
+// relative to Pluto's centre. The fit script lives in tests/fit-satellites.mjs.
 //
 // Angles in degrees, rates in degrees per day, time t in TT days since J2000.0.
 
@@ -29,6 +31,18 @@ const FITS = {
     node0: 28.830087346249, nodeRate: -0.001378537559, peri0: 208.371584950542, periRate: 0.001394905332,
     L0: 11.901906562503, n: 22.576975420102, ndot: 0, NP: 0.0334442282,
     lon: [0.0071009769, -0.0077018183, -0.0110931591, 0.0045091952, 0.031107251, -0.0228031997],
+  },
+  Triton: {
+    poleRA: 119.409784818915, poleDec: -43.365137625959, a: 354797.6847073379, e: 0.000175786845, i: 23.076446361081,
+    node0: 182.260438171155, nodeRate: -0.001439824761, peri0: 232.800326235039, periRate: 2.8788825936,
+    L0: 60.752261781134, n: 61.257260345235, ndot: 0, NP: 0.0059811,
+    lon: [-0.0007244184, -0.0003287765, 0.0006434694, 0.0013693269, 0.0119563981, 0.0244113442],
+  },
+  Charon: {
+    poleRA: 133.007128972885, poleDec: -6.262120053898, a: 19595.764510365814, e: 0.000160900211, i: 0.017562037945,
+    node0: 179.929277549725, nodeRate: -0.000314427064, peri0: 155.355064577547, periRate: 0.000002701842,
+    L0: 304.410033453256, n: 56.362525311303, ndot: 0, NP: 0.0039753,
+    lon: [-0.0023979786, -0.0037946571, -0.0002186544, -0.0024228474, 0.2847930864, 0.9797396336],
   },
 };
 

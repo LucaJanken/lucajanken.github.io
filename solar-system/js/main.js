@@ -1,7 +1,7 @@
 // Solar System: app state, main loop and controls.
 import * as THREE from '../vendor/three.min.js';
 import { snapshot, AU_KM } from './astro/ephemeris.js';
-import { upcomingEvents } from './astro/events.js';
+import { EventTimeline, eventService } from './astro/events.js';
 import { DT_MEASURED_UNTIL } from './astro/deltat.js';
 import { BODIES, BY_NAME, meanRadius } from './data/bodies.js';
 import { DisplayScale, toScene } from './scene/scale.js';
@@ -516,26 +516,141 @@ function paintList() {
 }
 
 // ---------------------------------------------------------------- events (eclipses, transits)
-let evFrom = null;
-function openEvents(more = false) {
-  const list = $('evList');
-  if (!more) { list.innerHTML = ''; evFrom = new Date(state.simMs); }
-  const evs = upcomingEvents(evFrom, { solar: 4, lunar: 4, transits: 1 });
-  // list only up to the earlier of the last solar and last lunar eclipse found, so the next batch
-  // (which starts there) cannot skip an eclipse of the other kind
-  const lastOf = kind => evs.filter(e => e.kind === kind).reduce((m, e) => Math.max(m, e.date), 0);
-  const cutoff = Math.min(lastOf('solar'), lastOf('lunar'));
-  if (!cutoff) { toast('No further events found.'); openSheet('events'); return; }
-  for (const e of evs) {
-    if (e.date > cutoff) continue;
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'ev';
-    b.innerHTML = `<span class="d">${fmtDate(e.date, true)}<br>${fmtTime(e.date, true, false)} UT</span><span class="t">${e.title}</span><span class="w">${e.where}</span>`;
-    b.addEventListener('click', () => { closeSheets(); jumpToEvent(e); });
-    list.appendChild(b);
-  }
-  evFrom = new Date(cutoff + DAY_MS);
+// A list that opens at the displayed date and grows in both directions as it is scrolled: each end
+// that comes within reach asks for one more step of events. The searches run in a worker, one step
+// at a time, so scrolling never waits for them.
+const EV_KINDS = ['solar', 'lunar', 'transit'];
+const EV_COLOR = { solar: BY_NAME.Sun.color, lunar: '#c8683f' };   // the Sun; the eclipsed Moon's copper
+let evKinds = new Set(EV_KINDS);
+try { const k = JSON.parse(localStorage.getItem('solarSystem.evKinds')); if (Array.isArray(k)) evKinds = new Set(k.filter(x => EV_KINDS.includes(x))); } catch {}
+// gen: which list the replies belong to (a new one starts when the list is rebuilt); busy: a step
+// is being searched; anchor: the instant to bring to the top once the first rows arrive
+const ev = { gen: 0, at: 0, anchor: null, busy: false, atStart: true, atEnd: true, on: false, queued: false };
+const evYear = t => civil(new Date(t), true).y;
+
+// the worker (started on first use), or if it cannot start, the same searches on the page
+let evPost = m => {
+  const serve = eventService();
+  const local = m => setTimeout(() => evReply(serve(m)));
+  let pending = [];
+  try {
+    const w = new Worker(new URL('./astro/events-worker.js', import.meta.url), { type: 'module' });
+    w.onmessage = e => { pending.shift(); evReply(e.data); };
+    // an error (module workers unsupported): replay what was asked, on the page
+    w.onerror = () => { w.terminate(); evPost = local; const p = pending; pending = []; p.forEach(local); };
+    evPost = m => { pending.push(m); w.postMessage(m); };
+  } catch { evPost = local; }
+  evPost(m);
+};
+
+function openEvents() {
   openSheet('events');
+  ev.at = Math.min(Math.max(state.simMs, MIN_MS), MAX_MS - 1);
+  buildEvents(ev.at);
+}
+
+// (re)start the list at instant `anchor`, which is scrolled to the top once its rows are in
+function buildEvents(anchor) {
+  const list = $('evList');
+  for (const n of list.querySelectorAll('.ev-group')) n.remove();
+  ev.gen++; ev.anchor = anchor; ev.on = evKinds.size > 0;
+  ev.atStart = ev.atEnd = !ev.on;
+  ev.busy = ev.on;
+  if (ev.on) evPost({ gen: ev.gen, later: true, start: { kinds: [...evKinds], at: anchor, min: MIN_MS, max: MAX_MS } });
+  paintEvEdges();
+}
+
+function evReply(r) {
+  if (r.gen !== ev.gen) return;   // for a list since rebuilt
+  ev.busy = false; ev.atStart = r.atStart; ev.atEnd = r.atEnd;
+  addEvents(r.later, r.events.map(e => ({ ...e, date: new Date(e.date) })), r.span);
+  if (ev.anchor !== null) {
+    const list = $('evList'), row = [...list.querySelectorAll('.ev, .ev-now')].find(n => +n.dataset.t >= ev.anchor);
+    const head = list.querySelector('.ev-year');
+    list.scrollTop = row ? row.offsetTop - (head ? head.offsetHeight : 0) : list.scrollHeight;
+    ev.anchor = null;
+  }
+  paintEvEdges();
+  queueEvFill();
+}
+
+// rows for one step of events after (later) or before those shown, which cover the span [a, b).
+// Rows are grouped by year, each group under a heading that stays at the top while its rows pass.
+function addEvents(later, items, [a, b]) {
+  const list = $('evList');
+  // the displayed date's marker, in the step that covers it
+  if (ev.at >= a && ev.at < b) {
+    const i = items.findIndex(e => e.date > ev.at);
+    items.splice(i < 0 ? items.length : i, 0, null);
+  }
+  if (!items.length) return;
+  // rows added above those in view move the view down by as much as the list grew
+  const h0 = list.scrollHeight;
+  const groups = [...list.querySelectorAll('.ev-group')];
+  const first = groups[0] || $('evEnd');
+  let group = later ? groups[groups.length - 1] : null, anchor = null;
+  for (const e of items) {
+    const y = evYear(e ? e.date.getTime() : ev.at);
+    if (!group || +group.dataset.y !== y) {
+      const old = later ? null : list.querySelector(`.ev-group[data-y="${y}"]`);
+      if (old) { group = old; anchor = old.querySelector('.ev-year').nextSibling; }   // the year continues into the old rows
+      else {
+        group = document.createElement('div');
+        group.className = 'ev-group'; group.dataset.y = y;
+        group.innerHTML = `<div class="ev-year">${y}</div>`;
+        list.insertBefore(group, later ? $('evEnd') : first);
+        anchor = null;
+      }
+    }
+    group.insertBefore(e ? eventRow(e) : nowRow(), anchor);
+  }
+  if (!later) list.scrollTop += list.scrollHeight - h0;
+}
+
+function eventRow(e) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'ev';
+  b.dataset.t = e.date.getTime();
+  const cur = e.start <= ev.at && ev.at <= e.end;
+  if (cur) b.setAttribute('aria-current', 'true');
+  else if (e.date < ev.at) b.classList.add('past');
+  const color = EV_COLOR[e.kind] || BY_NAME[e.sub].color;
+  b.innerHTML = `<span class="d">${fmtDate(e.date, true)}<br>${fmtTime(e.date, true, false)} UT</span><span class="t"><i class="k" style="background:${color}"></i>${e.title}${cur ? '<span class="tag">shown</span>' : ''}</span><span class="w">${e.detail}</span>`;
+  b.addEventListener('click', () => { closeSheets(); jumpToEvent(e); });
+  return b;
+}
+function nowRow() {
+  const d = document.createElement('div');
+  d.className = 'ev-now'; d.dataset.t = ev.at;
+  d.textContent = `Displayed · ${fmtDate(new Date(ev.at), true)} ${fmtTime(new Date(ev.at), true, false)} UT`;
+  return d;
+}
+function paintEvEdges() {
+  $('evTop').textContent = !ev.on ? '' : ev.atStart ? 'The model begins in the year 1000.' : 'Searching earlier events…';
+  $('evEnd').textContent = !ev.on ? 'Choose at least one kind of event.' : ev.atEnd ? 'The model ends in the year 2999.' : 'Searching later events…';
+  for (const b of document.querySelectorAll('[data-evkind]')) b.setAttribute('aria-pressed', evKinds.has(b.dataset.evkind));
+}
+// ask for a step wherever an end of the list is within reach, one step at a time
+function evFill() {
+  ev.queued = false;
+  if (ev.busy || !ev.on || $('events').hidden) return;
+  const r = $('evList').getBoundingClientRect(), reach = 800;
+  let later;
+  if (!ev.atEnd && $('evEnd').getBoundingClientRect().top < r.bottom + reach) later = true;
+  else if (!ev.atStart && $('evTop').getBoundingClientRect().bottom > r.top - reach) later = false;
+  else return;
+  ev.busy = true;
+  evPost({ gen: ev.gen, later });
+}
+function queueEvFill() { if (!ev.queued) { ev.queued = true; requestAnimationFrame(evFill); } }
+function setEvKind(k) {
+  if (evKinds.has(k)) evKinds.delete(k); else evKinds.add(k);
+  try { localStorage.setItem('solarSystem.evKinds', JSON.stringify([...evKinds])); } catch {}
+  // keep the place: restart from the first row in view
+  const list = $('evList'), head = list.querySelector('.ev-year');
+  const top = list.getBoundingClientRect().top + (head ? head.offsetHeight : 0);
+  const row = [...list.querySelectorAll('.ev, .ev-now')].find(n => n.getBoundingClientRect().bottom > top);
+  buildEvents(row ? +row.dataset.t : ev.at);
 }
 
 function jumpToEvent(e) {
@@ -579,7 +694,7 @@ function jumpToEvent(e) {
 }
 
 // ---------------------------------------------------------------- sheets, toasts, sharing
-function openSheet(id) { closeSheets(); $(id).hidden = false; $(id).querySelector('[data-close]').focus(); }
+function openSheet(id) { closeSheets(); setMenu(false); $(id).hidden = false; $(id).querySelector('[data-close]').focus(); }
 function closeSheets() { for (const s of document.querySelectorAll('.sheet')) s.hidden = true; }
 let toastTimer = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 3200); }
@@ -626,6 +741,14 @@ function wire() {
   // iOS Safari zooms the page on a pinch even where touch-action forbids it; its own gesture events
   // (not the pointer events the 3D view uses) can still be cancelled
   for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+  // Labels lie over the 3D view: the wheel and a trackpad pinch there zoom the view, as they do
+  // next to them. Elsewhere (the panels) a pinch, which arrives as a wheel event with Ctrl held,
+  // must not zoom the page; a plain wheel still scrolls lists and sheets.
+  $('labels').addEventListener('wheel', e => {
+    e.preventDefault(); e.stopPropagation();
+    renderer.domElement.dispatchEvent(new WheelEvent('wheel', e));
+  }, { passive: false });
+  window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
   view.controls.addEventListener('change', () => wake(300));   // includes damping after a drag
   THREE.DefaultLoadingManager.onProgress = () => wake();
   bodies.onChange = () => wake();
@@ -691,8 +814,9 @@ function wire() {
   window.addEventListener('pointerdown', e => { if (whenOpen && !e.target.closest('#whenForm, #whenBtn')) setWhenOpen(false); }, true);
   $('timeMode').addEventListener('click', () => setTimeMode(TIME_MODES[(TIME_MODES.indexOf(timeMode) + 1) % TIME_MODES.length]));
   $('badge').addEventListener('click', () => { openSheet('guide'); $('guide').querySelector('table').scrollIntoView({ block: 'center' }); });
-  $('eventsBtn').addEventListener('click', () => openEvents(false));
-  $('evMore').addEventListener('click', () => openEvents(true));
+  $('eventsBtn').addEventListener('click', openEvents);
+  $('evList').addEventListener('scroll', queueEvFill, { passive: true });
+  for (const b of document.querySelectorAll('[data-evkind]')) b.addEventListener('click', () => setEvKind(b.dataset.evkind));
   $('guideBtn').addEventListener('click', () => openSheet('guide'));
   $('shareBtn').addEventListener('click', async () => {
     const url = shareUrl();
@@ -808,4 +932,4 @@ function look(name, dir = 'sun', k = 5) {
   if (dir === 'sun') d.add(new THREE.Vector3(0, 0.35, 0)).normalize();
   view.setFocus(name, disp, { dist: drawnRadius(name) * k, dir: d });
 }
-window.solarSystem = { look, state, view, scale, bodies, orbits, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };
+window.solarSystem = { look, state, view, scale, bodies, orbits, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, EventTimeline, openEvents };

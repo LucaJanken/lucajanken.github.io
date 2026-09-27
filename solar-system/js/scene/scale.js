@@ -19,7 +19,7 @@ const MEAN_A = Object.fromEntries(BODIES.filter(b => b.aKm).map(b => [b.name, b.
 const OUTERMOST = {};
 for (const b of BODIES) if (b.aKm) OUTERMOST[b.parent] = Math.max(OUTERMOST[b.parent] || 0, b.aKm);
 // how far out (scene units, beyond the planet's drawn radius) the outermost moon sits in the overview
-const MOON_BUDGET = { Earth: 2.9, Mars: 2.9, Jupiter: 10.6, Saturn: 7.0 };
+const MOON_BUDGET = { Earth: 2.9, Mars: 2.9, Jupiter: 10.6, Saturn: 7.0, Neptune: 3.5, Pluto: 2.2 };
 
 const geo = (a, b, s) => a * Math.pow(b / a, s);
 const sizeC = Rkm => 1.6 * Math.pow(Rkm / 6371, 0.32);

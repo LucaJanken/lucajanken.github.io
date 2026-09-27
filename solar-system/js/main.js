@@ -749,6 +749,14 @@ function wire() {
     renderer.domElement.dispatchEvent(new WheelEvent('wheel', e));
   }, { passive: false });
   window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+  // Labels answer the mouse (hover, pointer cursor, click) but let a finger or pen through to the
+  // view. Decided by the pointer in use, not by (hover: none), which touchscreen laptops report even
+  // with a mouse; until a pointer is seen, that guess stands. A touch that lands on a label while
+  // they answer the mouse is left to finish as a click (the browser places a tap's click afresh).
+  const labelsTouch = on => $('labels').classList.toggle('touch', on);
+  labelsTouch(matchMedia('(hover: none)').matches);
+  window.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') labelsTouch(false); }, { capture: true, passive: true });
+  window.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !e.target.closest('.lbl')) labelsTouch(true); }, { capture: true, passive: true });
   view.controls.addEventListener('change', () => wake(300));   // includes damping after a drag
   THREE.DefaultLoadingManager.onProgress = () => wake();
   bodies.onChange = () => wake();
@@ -835,7 +843,7 @@ function wire() {
   cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; setMenu(false); });
   cv.addEventListener('pointerup', e => {
     if (!down || Math.abs(e.clientX - down[0]) + Math.abs(e.clientY - down[1]) > 5) return;
-    // on touchscreens the labels let touches through to the view (see style.css), so a tap on one
+    // the labels let touches through to the view (see style.css), so a tap on one
     // is found here
     const r = cv.getBoundingClientRect(), name = labels.at(e.clientX, e.clientY) || (pick(e.clientX - r.left, e.clientY - r.top) || {}).name;
     if (name) select(name, true);

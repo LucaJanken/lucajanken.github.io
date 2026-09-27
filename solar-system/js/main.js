@@ -13,7 +13,7 @@ import { Labels } from './scene/labels.js';
 import { SunGlare } from './scene/glare.js';
 import { SUN_INTENSITY } from './scene/shaders.js';
 import { InfoPanel } from './ui/info.js';
-import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate, fmtRelative } from './ui/format.js';
+import { fmtDate, fmtTime, tzName, localInput, parseLocalInput, civil, fmtRate } from './ui/format.js';
 
 const $ = id => document.getElementById(id);
 const DAY_MS = 86400000;
@@ -53,10 +53,6 @@ const DEFAULT_FOV = 45;
 const sunLight = new THREE.PointLight(0xfff6ea, SUN_INTENSITY, 0, 0);
 scene.add(sunLight);
 
-const grid = new THREE.PolarGridHelper(1, 12, 8, 128, 0x2a3346, 0x1b2130);
-grid.material.transparent = true; grid.material.depthWrite = false;
-scene.add(grid);
-
 const shared = { nightOn: { value: 1 } };
 const scale = new DisplayScale();
 const bodies = new BodyViews(scene, renderer, shared);
@@ -95,25 +91,105 @@ function orbitMapping(name) {
 }
 const drawnRadius = name => scale.size(meanRadius(BY_NAME[name]));
 const overviewDistance = () => 2.1 * scale.helio(30.1 * AU_KM);
-const focusDistance = name => name === 'Sun' ? overviewDistance() : drawnRadius(name) * 5;
 // largest drawn radius (equatorial, for flattened planets)
 const drawnExtent = name => { const d = BY_NAME[name]; return drawnRadius(name) * Math.max(...d.shape) / meanRadius(d); };
+const focusDistance = name => name === 'Sun' ? overviewDistance() : closeDistance(name);
+// A comfortable distance to look at a body from: it spans about 40% of the narrower side of the
+// part of the screen the panels leave free (so a phone held upright does not crop it), Saturn's
+// rings included.
+function closeDistance(name) {
+  const d = BY_NAME[name], W = stage.clientWidth || 1, H = stage.clientHeight || 1;
+  const extent = Math.max(drawnExtent(name), d.rings && d.rings.outerKm ? drawnRadius(name) * d.rings.outerKm / meanRadius(d) : 0);
+  const side = Math.min(W, H, free.bottom - free.top);
+  return extent / Math.sin(Math.atan(0.4 * Math.tan(DEFAULT_FOV * Math.PI / 360) * side / H));
+}
+// How far out the camera may go: far enough for the whole of Pluto's orbit (out to 49 AU from the
+// Sun) to fit, with a margin, in the narrower side of the part of the screen the panels leave free,
+// wherever the view is centred (the orbit can reach that much farther from an outer planet).
+function maxDistance() {
+  const W = stage.clientWidth || 1, H = stage.clientHeight || 1, t = view.controls.target, o = view.origin;
+  const r = scale.helio(50 * AU_KM) + Math.hypot(t.x + o[0], t.y + o[1], t.z + o[2]);   // + the Sun's distance from the target
+  const side = Math.min(W, H, free.bottom - free.top);
+  return Math.max(3.2 * scale.helio(50 * AU_KM), 1.15 * r / Math.sin(Math.atan(Math.tan(DEFAULT_FOV * Math.PI / 360) * side / H)));
+}
+// The viewing direction for that close look: the user's own, turned toward the Sun just enough that
+// the body is seen at most 60° from full phase (three quarters lit) rather than as a dark disc.
+const MAX_PHASE = Math.PI / 3;
+function litSide(name) {
+  if (name === 'Sun') return null;
+  const s = new THREE.Vector3(...disp[name]).negate().normalize();
+  const c = camera.position.clone().sub(view.controls.target).normalize(), cos = c.dot(s);
+  if (cos >= Math.cos(MAX_PHASE)) return c;
+  const perp = c.addScaledVector(s, -cos);
+  // straight from behind: come round over the body's north side of the ecliptic
+  if (perp.lengthSq() < 1e-6) perp.set(0, 1, 0).addScaledVector(s, -s.y);
+  return s.multiplyScalar(Math.cos(MAX_PHASE)).addScaledVector(perp.normalize(), Math.sin(MAX_PHASE));
+}
+
+// On phones the clock covers the top of the screen and the information panel and time controls
+// the lower half, right where the focused body would be. The projection is shifted (a view offset,
+// so orbiting still turns about the body) to put the focus in the middle of the part left free.
+const free = { top: 0, bottom: Infinity };
+let viewShift = 0, shiftTarget = 0, shiftApplied = null;
+function measureFree() {
+  const W = stage.clientWidth, H = stage.clientHeight, cx = W / 2;
+  free.top = 0; free.bottom = H;
+  for (const el of [document.querySelector('header.time'), $('info'), document.querySelector('.timectl')]) {
+    if (!el.offsetParent) continue;
+    const r = el.getBoundingClientRect();
+    // only panels across the middle of the screen are in the way (the desktop layout keeps to the sides)
+    if (r.left > cx || r.right < cx) continue;
+    if (r.top < H / 2 && r.bottom < H * 0.4) free.top = Math.max(free.top, r.bottom);
+    else free.bottom = Math.min(free.bottom, r.top);
+  }
+  if (free.bottom - free.top < H * 0.2) { free.top = 0; free.bottom = H; }
+  shiftTarget = H / 2 - (free.top + free.bottom) / 2;
+}
+function applyShift(dt) {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  viewShift += (shiftTarget - viewShift) * Math.min(1, dt * 8);
+  if (Math.abs(shiftTarget - viewShift) < 0.5) viewShift = shiftTarget;
+  const key = W + 'x' + H + ':' + viewShift.toFixed(1);
+  if (key === shiftApplied) return;
+  shiftApplied = key;
+  if (Math.abs(viewShift) < 0.5) camera.clearViewOffset();
+  else camera.setViewOffset(W, H, 0, viewShift, W, H);
+}
 
 // ---------------------------------------------------------------- selection and focus
 function select(name, fly) {
   wake();
+  const again = name === state.selected;
   state.selected = name;
+  openSystems.add(systemOf(name));
   info.show(name);
   info.update(snap);
   paintList();
   if (fly) {
     camera.fov = DEFAULT_FOV; camera.updateProjectionMatrix();
-    // only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
     const R = drawnExtent(name);
-    view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
+    if (again) closeLook(name);
+    // otherwise only the target moves; zoom and angle stay the user's, unless the camera would be inside the body
+    else view.setFocus(name, disp, { minDist: R * 1.2, safeDist: R * 3 });
   }
   bodies.setAxis(name);
   hudDirty = true;
+}
+
+// Choosing the selected body again flies in to a comfortable view of it, from its lit side; once
+// there, choosing it again flies back out to where the camera was before (or to the distance of the
+// overview, if that was about as close).
+let zoomBack = null;   // { name, dist }: the distance to return to
+function closeLook(name) {
+  const close = closeDistance(name), d = view.distance();
+  if (view.focus === name && d < close * 1.5) {
+    const back = zoomBack && zoomBack.name === name && zoomBack.dist > close * 2 ? zoomBack.dist : Math.max(overviewDistance(), close * 4);
+    zoomBack = null;
+    view.setFocus(name, disp, { dist: back });
+  } else {
+    zoomBack = { name, dist: d };
+    view.setFocus(name, disp, { dist: close, dir: litSide(name) });
+  }
 }
 
 // ---------------------------------------------------------------- scale changes
@@ -133,7 +209,7 @@ function applyScale(s) {
   let factor;
   if (f !== 'Sun' && cd < 12 * before.r) factor = drawnRadius(f) / before.r;
   else factor = scale.helio(before.d) / cd;
-  if (Number.isFinite(factor) && factor > 0) view.rescale(factor);
+  if (Number.isFinite(factor) && factor > 0) { view.rescale(factor); if (zoomBack) zoomBack.dist *= factor; }
   $('scale').value = s;
   $('scaleMin').classList.toggle('on', s === 0);
   $('scaleMax').classList.toggle('on', s === 1);
@@ -155,10 +231,42 @@ function setTime(ms, { pause = false } = {}) {
 const setRate = () => state.dir * Math.pow(10, state.speed);   // the rate while playing
 const rate = () => state.playing ? setRate() : 0;
 function setSpeed(x) { state.speed = Math.max(0, Math.min(SPEED_MAX, +x.toFixed(2))); state.parked = false; hudDirty = true; }
+// the time step of the ◂ ▸ buttons (and , .): calendar months and years keep the day and time
+const STEPS = [
+  { label: '1 h', name: 'hour', ms: 3600000 }, { label: '1 d', name: 'day', ms: DAY_MS },
+  { label: '1 mo', name: 'month', months: 1 }, { label: '1 yr', name: 'year', months: 12 },
+];
+let step = STEPS[1];
+try { step = STEPS.find(s => s.name === localStorage.getItem('solarSystem.step')) || step; } catch {}
+function stepTime(sign) {
+  if (step.ms) return setTime(state.simMs + sign * step.ms);
+  // in UTC, clamped to the length of the month (31 Jan + 1 month is 28 or 29 Feb)
+  const d = new Date(state.simMs), day = d.getUTCDate();
+  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + sign * step.months);
+  d.setUTCDate(Math.min(day, new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()));
+  setTime(d.getTime());
+}
+function setStep(s) {
+  step = s;
+  try { localStorage.setItem('solarSystem.step', s.name); } catch {}
+  $('stepBtn').textContent = s.label;
+  $('stepBtn').setAttribute('aria-label', `Step: one ${s.name}. Change`);
+  $('backBtn').title = `Back one ${s.name} ( , )`; $('backBtn').setAttribute('aria-label', $('backBtn').title);
+  $('fwdBtn').title = `Forward one ${s.name} ( . )`; $('fwdBtn').setAttribute('aria-label', $('fwdBtn').title);
+}
+// − and + (and [ ]) move the speed slider one step left or right, as dragging it would: toward the
+// middle a rate slows down to real time, then stops in the notch, then runs the other way
+function stepSpeed(sign) {
+  if (!state.playing && state.parked) { state.dir = sign; state.speed = 0; state.parked = false; state.playing = true; }
+  else if (sign === state.dir) setSpeed(state.speed + 0.25);
+  else if (state.speed > 0) setSpeed(state.speed - 0.25);
+  else { state.playing = false; state.parked = true; }
+  hudDirty = true;
+}
 function setPlaying(on) { state.playing = on; if (on) state.parked = false; hudDirty = true; }
 
 // ---------------------------------------------------------------- main loop
-let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60, whenStaged = false;
+let last = performance.now(), lastHud = 0, hudDirty = true, frameDt = 1 / 60, whenOpen = false;
 let hudBoxes = null, screenPos = [];
 // Render on demand: while time is paused and nobody interacts, nothing changes on screen, so an
 // idle page draws nothing (laptop and phone batteries). Input, loads and state changes wake it.
@@ -168,10 +276,9 @@ function frame(now) {
   requestAnimationFrame(frame);
   const elapsed = (now - last) / 1000, dt = Math.min(0.1, elapsed);
   last = now;
-  const active = state.playing || view.tween || scaleAnim || now < wakeUntil;
+  const active = state.playing || view.tween || scaleAnim || now < wakeUntil || viewShift !== shiftTarget;
   if (!active) {
-    // the clock text ("… from now") still ages, slowly
-    if (hudDirty || now - lastHud > 1000) { lastHud = now; hudDirty = false; updateHud(); }
+    if (hudDirty) { lastHud = now; hudDirty = false; updateHud(); }
     return;
   }
   frameDt = frameDt * 0.9 + dt * 0.1;
@@ -192,7 +299,8 @@ function frame(now) {
     if (k >= 1) scaleAnim = null;
   }
   computeDisplay();
-  view.update(disp, drawnExtent(view.focus), 3.2 * scale.helio(50 * AU_KM));
+  view.update(disp, drawnExtent(view.focus), maxDistance());
+  applyShift(dt);
   // OrbitControls turns the camera with lookAt, which leaves the view matrix one orientation
   // behind until the render; the labels, picking and glare below project with it
   camera.updateMatrixWorld();
@@ -211,21 +319,17 @@ function frame(now) {
   orbits.update(snap, disp, origin, n => state.show.orbits && (state.show.moons || BY_NAME[n].parent === 'Sun'), orbitMapping, state.simMs + '/' + scale.s);
   sunLight.position.set(-origin[0], -origin[1], -origin[2]);
 
-  const gridR = scale.helio(31 * AU_KM);
-  grid.position.set(-origin[0], -origin[1], -origin[2]);
-  grid.scale.setScalar(gridR);
-  const camD = view.distance();
-  grid.material.opacity = state.show.orbits ? 0.3 * Math.max(0, Math.min(1, (camD / gridR - 0.15) / 0.3)) : 0;
-  grid.visible = grid.material.opacity > 0.01;
-
   stars.setEpoch((snap.tt) / 365.25);
   stars.visible = state.show.stars;
 
   // labels (and screen positions for picking)
   const W = stage.clientWidth, H = stage.clientHeight;
-  if (!hudBoxes) hudBoxes = [...document.querySelectorAll('[data-hud]')].filter(e => e.offsetParent).map(e => {
-    const r = e.getBoundingClientRect(); return { left: r.left - 4, right: r.right + 4, top: r.top - 4, bottom: r.bottom + 4 };
-  });
+  if (!hudBoxes) {
+    hudBoxes = [...document.querySelectorAll('[data-hud]')].filter(e => e.offsetParent).map(e => {
+      const r = e.getBoundingClientRect(); return { left: r.left - 4, right: r.right + 4, top: r.top - 4, bottom: r.bottom + 4 };
+    });
+    measureFree();
+  }
   const entries = BODIES.map((def, i) => {
     const v = bodies.views[def.name];
     const isMoon = def.parent && def.parent !== 'Sun';
@@ -315,7 +419,7 @@ function setTimeMode(m) {
   $('when').setAttribute('aria-label', m === 'Local' ? 'Date and time (local)' : 'Date and time (UTC)');
   hudBoxes = null; hudDirty = true; wake();
 }
-const timeEls = { clock: $('clock'), date: $('date'), rel: $('rel'), tz: $('tzLabel'), badge: $('badge') };
+const timeEls = { clock: $('clock'), date: $('date'), tz: $('tzLabel'), badge: $('badge') };
 const dayTag = n => n ? `<span class="dtag" title="${n > 0 ? 'the next' : 'the previous'} day">${n > 0 ? '+' : '−'}${Math.abs(n)} d</span>` : '';
 function updateHud() {
   const d = new Date(state.simMs), utc = timeMode !== 'Local';
@@ -323,7 +427,6 @@ function updateHud() {
   timeEls.date.textContent = fmtDate(d, utc);
   const julian = civil(d, utc).julian ? 'Julian calendar' : '';
   timeEls.tz.textContent = [timeMode === 'Local' ? tzName(d) : timeMode === 'Scientific' ? 'UTC' : '', julian].filter(Boolean).join(' · ');
-  timeEls.rel.textContent = fmtRelative(state.simMs - Date.now());
   // nothing to say while inside the validated range
   timeEls.badge.hidden = state.simMs >= VALID_FROM && state.simMs < VALID_TO;
   if (timeMode === 'Scientific' && snap) {
@@ -336,13 +439,15 @@ function updateHud() {
     $('tdJD').textContent = (snap.tt + 2451545).toFixed(5);
   }
   const when = $('when');
-  if (!whenStaged && document.activeElement !== when) when.value = localInput(d, utc);
+  // (not while it is being edited: in the popover, or in a phone's picker)
+  if (!whenOpen && document.activeElement !== when) when.value = localInput(d, utc);
   $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
-  // the rate stays visible while paused (dimmed): it is what Play resumes at
-  const rateEl = $('rate');
-  rateEl.textContent = fmtRate(setRate());
-  rateEl.classList.toggle('paused', !state.playing);
-  rateEl.title = state.playing ? 'Simulation speed' : 'Paused. Play resumes at this speed.';
+  // Paused with the button, the rate stays visible (dimmed): it is what Play resumes at. Stopped in
+  // the slider's notch, time stands still and the rate says so.
+  const rateEl = $('rate'), stopped = !state.playing && state.parked;
+  rateEl.textContent = stopped ? fmtRate(0) : fmtRate(setRate());
+  rateEl.classList.toggle('paused', !state.playing && !stopped);
+  rateEl.title = state.playing ? 'Simulation speed' : stopped ? 'Stopped. Move the slider out of the middle, or press Play, to run time again.' : 'Paused. Play resumes at this speed.';
   const speed = $('speed');
   if (document.activeElement !== speed) speed.value = !state.playing && state.parked ? 0 : state.dir * (state.speed + NOTCH);
   speed.setAttribute('aria-valuetext', state.playing ? fmtRate(setRate()) : 'stopped, resumes at ' + fmtRate(setRate()));
@@ -350,22 +455,39 @@ function updateHud() {
 }
 
 // ---------------------------------------------------------------- body list
+// planets whose moons are listed: the selected body's system opens by itself, and each planet's
+// moon count opens or closes its moons, so a moon can be chosen without flying to the planet first
+const openSystems = new Set();
+const systemOf = name => BY_NAME[name].parent && BY_NAME[name].parent !== 'Sun' ? BY_NAME[name].parent : name;
 function buildList() {
   const ul = $('bodyList');
   for (const def of BODIES) {
     const isMoon = def.parent && def.parent !== 'Sun';
     const li = document.createElement('li');
+    li.className = 'body-item' + (isMoon ? ' moon' : '');
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'body-btn' + (isMoon ? ' moon' : '');
+    btn.className = 'body-btn';
     btn.dataset.body = def.name;
-    if (isMoon) btn.dataset.parent = def.parent;
+    if (isMoon) li.dataset.parent = def.parent;
     btn.innerHTML = `<span class="dot" style="background:${def.color}"></span><span>${def.name}</span>`;
-    const nMoons = BODIES.filter(b => b.parent === def.name).length;
-    if (nMoons && def.name !== 'Sun') btn.insertAdjacentHTML('beforeend', `<span class="n" data-n="${nMoons}">${nMoons}</span>`);
-    // on phones the list is a menu over the view: get it out of the way of the body just chosen
-    btn.addEventListener('click', () => { select(def.name, true); setMenu(false); });
+    // the menu stays open, so several bodies can be visited in a row; tapping the view closes it
+    btn.addEventListener('click', () => select(def.name, true));
     li.appendChild(btn);
+    const nMoons = BODIES.filter(b => b.parent === def.name).length;
+    if (nMoons && def.name !== 'Sun') {
+      const exp = document.createElement('button');
+      exp.type = 'button';
+      exp.className = 'exp';
+      exp.dataset.system = def.name;
+      exp.dataset.n = nMoons;
+      exp.setAttribute('aria-label', `${def.name}: ${nMoons} ${nMoons > 1 ? 'moons' : 'moon'}`);
+      exp.addEventListener('click', () => {
+        if (openSystems.has(def.name)) openSystems.delete(def.name); else openSystems.add(def.name);
+        paintList();
+      });
+      li.appendChild(exp);
+    }
     ul.appendChild(li);
   }
 }
@@ -376,13 +498,19 @@ function setMenu(open) {
   hudBoxes = null;
 }
 function paintList() {
-  const sel = state.selected, selSystem = BY_NAME[sel] && BY_NAME[sel].parent && BY_NAME[sel].parent !== 'Sun' ? BY_NAME[sel].parent : sel;
-  for (const btn of document.querySelectorAll('.body-btn')) {
-    const name = btn.dataset.body, parent = btn.dataset.parent;
-    btn.setAttribute('aria-current', name === sel);
-    if (parent) btn.parentElement.hidden = !(parent === selSystem && state.show.moons);
-    const n = btn.querySelector('.n');
-    if (n) n.textContent = n.dataset.n + (name === selSystem && state.show.moons ? ' ▾' : ' ▸');
+  const sel = state.selected, moons = state.show.moons;
+  for (const li of document.querySelectorAll('.body-item')) {
+    const btn = li.querySelector('.body-btn'), exp = li.querySelector('.exp');
+    btn.setAttribute('aria-current', btn.dataset.body === sel);
+    li.classList.toggle('cur', btn.dataset.body === sel);
+    if (li.dataset.parent) li.hidden = !(moons && openSystems.has(li.dataset.parent));
+    if (exp) {
+      const open = moons && openSystems.has(exp.dataset.system);
+      exp.textContent = exp.dataset.n + (moons ? open ? ' ▾' : ' ▸' : '');
+      exp.setAttribute('aria-expanded', open);
+      // with moons hidden there is nothing to open
+      exp.disabled = !moons;
+    }
   }
   hudBoxes = null;
 }
@@ -495,6 +623,9 @@ function wire() {
   for (const ev of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'click', 'touchstart']) window.addEventListener(ev, () => wake(), { capture: true, passive: true });
   window.addEventListener('pointermove', e => { if (e.buttons) wake(); }, { passive: true });
   document.addEventListener('visibilitychange', () => wake());
+  // iOS Safari zooms the page on a pinch even where touch-action forbids it; its own gesture events
+  // (not the pointer events the 3D view uses) can still be cancelled
+  for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
   view.controls.addEventListener('change', () => wake(300));   // includes damping after a drag
   THREE.DefaultLoadingManager.onProgress = () => wake();
   bodies.onChange = () => wake();
@@ -513,8 +644,10 @@ function wire() {
   $('scaleMin').addEventListener('click', () => setScale(0));
   $('scaleMax').addEventListener('click', () => setScale(1));
   $('playBtn').addEventListener('click', () => setPlaying(!state.playing));
-  $('backBtn').addEventListener('click', () => setTime(state.simMs - DAY_MS));
-  $('fwdBtn').addEventListener('click', () => setTime(state.simMs + DAY_MS));
+  $('backBtn').addEventListener('click', () => stepTime(-1));
+  $('fwdBtn').addEventListener('click', () => stepTime(1));
+  $('stepBtn').addEventListener('click', () => setStep(STEPS[(STEPS.indexOf(step) + 1) % STEPS.length]));
+  setStep(step);
   $('nowBtn').addEventListener('click', () => setTime(Date.now()));
   $('speed').addEventListener('input', e => {
     const v = +e.target.value;
@@ -527,29 +660,35 @@ function wire() {
     }
     hudDirty = true;
   });
-  $('slowBtn').addEventListener('click', () => setSpeed(state.speed - 0.25));
-  $('fastBtn').addEventListener('click', () => setSpeed(state.speed + 0.25));
+  $('slowBtn').addEventListener('click', () => stepSpeed(-1));
+  $('fastBtn').addEventListener('click', () => stepSpeed(1));
 
-  // the date field is a draft until confirmed with OK or Enter; Esc, or leaving it for something
-  // else, puts back the displayed time
-  const when = $('when'), whenOk = $('whenOk');
-  const draft = on => { whenStaged = on; $('whenForm').classList.toggle('staged', on); whenOk.disabled = !on; if (!on) hudDirty = true; };
-  when.addEventListener('input', () => draft(true));
-  when.addEventListener('change', () => draft(true));
-  $('whenForm').addEventListener('submit', e => {
-    e.preventDefault();
-    // in the clock's time (local or UTC), Julian calendar before 1582
+  // The calendar button. On touchscreens the date input lies invisibly over it (style.css), so a tap
+  // opens the system's own picker, and the date it sets is applied at once. On computers the button
+  // opens the input as a popover: a date typed or picked there is applied with Go or Enter, and Esc
+  // (or a click elsewhere) leaves it.
+  const when = $('when'), whenForm = $('whenForm'), whenBtn = $('whenBtn');
+  const touch = () => matchMedia('(pointer: coarse)').matches;
+  const setWhenOpen = on => { whenOpen = on; whenForm.classList.toggle('open', on); whenBtn.setAttribute('aria-expanded', on); if (!on) hudDirty = true; };
+  // in the clock's time (local or UTC), Julian calendar before 1582
+  const goToWhen = () => {
     const t = parseLocalInput(when.value, timeMode !== 'Local');
-    if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return; }
-    draft(false); setTime(t); when.blur();
+    if (Number.isNaN(t) || t < MIN_MS || t > MAX_MS) { toast('Choose a date between the years 1000 and 2999.'); return false; }
+    setTime(t); return true;
+  };
+  whenBtn.addEventListener('click', () => {
+    if (whenOpen) { setWhenOpen(false); return; }
+    when.value = localInput(new Date(state.simMs), timeMode !== 'Local');
+    setWhenOpen(true);
+    when.focus();
+    try { when.showPicker(); } catch {}
   });
+  whenForm.addEventListener('submit', e => { e.preventDefault(); if (goToWhen()) { setWhenOpen(false); when.blur(); } });
+  when.addEventListener('change', () => { if (touch() && when.value) goToWhen(); });
   when.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); draft(false); when.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setWhenOpen(false); when.blur(); }
   });
-  // Focus moving to another control discards the draft, but a blur with nowhere to go does not:
-  // on phones the native picker closes that way, and the draft must survive until OK is tapped.
-  when.addEventListener('blur', e => { if (e.relatedTarget && e.relatedTarget !== whenOk) draft(false); });
-  window.addEventListener('pointerdown', e => { if (whenStaged && !e.target.closest('#whenForm')) draft(false); }, true);
+  window.addEventListener('pointerdown', e => { if (whenOpen && !e.target.closest('#whenForm, #whenBtn')) setWhenOpen(false); }, true);
   $('timeMode').addEventListener('click', () => setTimeMode(TIME_MODES[(TIME_MODES.indexOf(timeMode) + 1) % TIME_MODES.length]));
   $('badge').addEventListener('click', () => { openSheet('guide'); $('guide').querySelector('table').scrollIntoView({ block: 'center' }); });
   $('eventsBtn').addEventListener('click', () => openEvents(false));
@@ -572,8 +711,10 @@ function wire() {
   cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; setMenu(false); });
   cv.addEventListener('pointerup', e => {
     if (!down || Math.abs(e.clientX - down[0]) + Math.abs(e.clientY - down[1]) > 5) return;
-    const r = cv.getBoundingClientRect(), best = pick(e.clientX - r.left, e.clientY - r.top);
-    if (best) select(best.name, true);
+    // on touchscreens the labels let touches through to the view (see style.css), so a tap on one
+    // is found here
+    const r = cv.getBoundingClientRect(), name = labels.at(e.clientX, e.clientY) || (pick(e.clientX - r.left, e.clientY - r.top) || {}).name;
+    if (name) select(name, true);
   });
   // hover: a faint ring and a pointer cursor say that bodies can be clicked
   cv.addEventListener('pointermove', e => {
@@ -597,10 +738,10 @@ function wire() {
     switch (e.key) {
       // Space presses a button reached with the keyboard; after a click it is play/pause again
       case ' ': if ((tag === 'BUTTON' || tag === 'SUMMARY') && keyboardNav) { used = false; break; } setPlaying(!state.playing); break;
-      case ',': setTime(state.simMs - DAY_MS); break;
-      case '.': setTime(state.simMs + DAY_MS); break;
-      case '[': setSpeed(state.speed - 0.25); break;
-      case ']': setSpeed(state.speed + 0.25); break;
+      case ',': stepTime(-1); break;
+      case '.': stepTime(1); break;
+      case '[': stepSpeed(-1); break;
+      case ']': stepSpeed(1); break;
       case 'r': case 'R': state.dir = -state.dir; break;
       case 'n': case 'N': setTime(Date.now()); break;
       case 't': case 'T': setScale(scale.s < 0.5 ? 1 : 0); break;
@@ -626,6 +767,12 @@ function wire() {
   };
   new ResizeObserver(resize).observe(stage);
   resize();
+  // the phone layout stacks the information panel on the time controls, whose height depends on
+  // how their rows wrap
+  const ctl = document.querySelector('.timectl');
+  new ResizeObserver(() => { $('app').style.setProperty('--ctl-h', ctl.offsetHeight + 'px'); hudBoxes = null; }).observe(ctl);
+  // and the part of the screen the panels leave free changes with them
+  new ResizeObserver(() => { hudBoxes = null; wake(); }).observe($('info'));
 }
 
 // ---------------------------------------------------------------- start
@@ -661,4 +808,4 @@ function look(name, dir = 'sun', k = 5) {
   if (dir === 'sun') d.add(new THREE.Vector3(0, 0.35, 0)).normalize();
   view.setFocus(name, disp, { dist: drawnRadius(name) * k, dir: d });
 }
-window.solarSystem = { look, state, view, scale, bodies, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };
+window.solarSystem = { look, state, view, scale, bodies, orbits, glare, renderer, snapshotAt: ms => snapshot(ms), setTime, setScale, select, jumpToEvent, upcomingEvents };

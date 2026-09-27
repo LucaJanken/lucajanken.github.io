@@ -39,6 +39,17 @@ export class Labels {
     }
   }
 
+  /** the body whose label is at a screen point (client pixels, with a margin for a finger) */
+  at(x, y, margin = 6) {
+    for (const n in this.items) {
+      const it = this.items[n];
+      if (!it.shown) continue;
+      const r = it.el.getBoundingClientRect();
+      if (x > r.left - margin && x < r.right + margin && y > r.top - margin && y < r.bottom + margin) return n;
+    }
+    return null;
+  }
+
   /** label widths change once the web font arrives */
   remeasure() { for (const n in this.items) this.items[n].w = 0; }
 
